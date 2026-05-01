@@ -475,6 +475,17 @@ function seed() {
   console.log('   Cliente: joao@cliente.com / cliente123');
 }
 
+// Auto-seed: roda automaticamente se o banco estiver vazio (primeira deploy)
+(function autoSeedIfEmpty() {
+  try {
+    const row = db.prepare('SELECT COUNT(*) as c FROM users').get();
+    if (row && row.c === 0) {
+      console.log('🌱 Banco vazio detectado, rodando seed automático...');
+      seed();
+    }
+  } catch(e) { console.error('auto-seed:', e.message); }
+})();
+
 if (require.main === module && process.argv.includes('--seed')) {
   seed();
   process.exit(0);
