@@ -347,4 +347,59 @@ router.get('/progressao', (req, res) => {
   res.render('client/progressao', { title: 'Minha Progressão — VS TEAM', progression });
 });
 
+
+// ============ TREINAR (modo cronômetro casual) ============
+router.get('/treinar', (req, res) => {
+  const cliente = db.prepare(`SELECT c.*, u.name FROM clients c JOIN users u ON u.id = c.user_id WHERE c.id = ?`).get(req.clientId);
+  const activeSession = db.prepare("SELECT s.*, w.title, w.day_label FROM workout_sessions s JOIN workouts w ON w.id = s.workout_id WHERE s.client_id = ? AND s.status = 'em_andamento' ORDER BY s.started_at DESC LIMIT 1").get(req.clientId);
+
+  // Lista treinos da semana com contagem de sessões concluídas
+  const workouts = db.prepare(`
+    SELECT w.*,
+      (SELECT COUNT(*) FROM workout_sessions ws WHERE ws.workout_id = w.id AND ws.client_id = ? AND ws.status = 'concluido') as completed_count
+    FROM workouts w
+    WHERE w.client_id = ? AND w.week_number = ?
+    ORDER BY completed_count ASC, w.day_label ASC
+  `).all(req.clientId, req.clientId, cliente.current_week);
+
+  // Treino selecionado: query param ?w=ID, ou o primeiro (menos completado)
+  const targetId = parseInt(req.query.w) || (workouts[0] && workouts[0].id);
+  const todayWorkout = workouts.find(w => w.id === targetId) || workouts[0] || null;
+  let exercises = [];
+  if (todayWorkout) {
+    exercises = db.prepare('SELECT * FROM exercises WHERE workout_id = ? ORDER BY order_idx').all(todayWorkout.id);
+  }
+
+  // Sessões recentes (histórico)
+  const recentSessions = db.prepare(`
+    SELECT s.*, w.title, w.day_label
+    FROM workout_sessions s JOIN workouts w ON w.id = s.workout_id
+    WHERE s.client_id = ? AND s.status = 'concluido'
+    ORDER BY s.finished_at DESC LIMIT 5
+  `).all(req.clientId);
+
+  res.render('client/treinar', {
+    title: 'Treinar — VS TEAM',
+    cliente, activeSession, todayWorkout, exercises, workouts, recentSessions
+  });
+});
+
+// Finalizar treino casual (modo cronômetro)
+router.post('/treinar/finalizar', (req, res) => {
+  const { workout_id, duration_sec, notes } = req.body;
+  const w = db.prepare('SELECT id FROM workouts WHERE id = ? AND client_id = ?').get(workout_id, req.clientId);
+  if (!w) { req.flash('error', 'Treino não encontrado.'); return res.redirect('/cliente/treinar'); }
+
+  db.prepare(`INSERT INTO workout_sessions (client_id, workout_id, status, started_at, finished_at, duration_sec, notes)
+    VALUES (?, ?, 'concluido', datetime('now', '-' || ? || ' seconds'), datetime('now'), ?, ?)`)
+    .run(req.clientId, workout_id, parseInt(duration_sec) || 0, parseInt(duration_sec) || 0, notes || null);
+
+  // Pontos
+  db.prepare("INSERT INTO gym_cats_events (client_id, action, points) VALUES (?, 'Treino concluído (modo cronômetro)', 25)").run(req.clientId);
+  db.prepare("UPDATE clients SET gym_cats_points = gym_cats_points + 25 WHERE id = ?").run(req.clientId);
+
+  req.flash('success', 'Treino registrado! +25 pts Gym Cats.');
+  res.redirect('/cliente/treinar');
+});
+
 module.exports = router;

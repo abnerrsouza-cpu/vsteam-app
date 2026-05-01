@@ -16,7 +16,10 @@
     <a href="/cliente" class="nav-item <%= currentPath === '/' ? 'active' : '' %>">
       <span class="nav-icon"><%- ICONS.dashboard %></span>Dashboard
     </a>
-    <a href="/cliente/treinos" class="nav-item <%= currentPath.startsWith('/treinos') ? 'active' : '' %>">
+    <a href="/cliente/treinar" class="nav-item <%= currentPath.startsWith('/treinar') ? 'active' : '' %>">
+      <span class="nav-icon"><%- ICONS.activity %></span>Treinar
+    </a>
+        <a href="/cliente/treinos" class="nav-item <%= currentPath.startsWith('/treinos') ? 'active' : '' %>">
       <span class="nav-icon"><%- ICONS.dumbbell %></span>Meus Treinos
     </a>
     <a href="/cliente/avaliacao" class="nav-item <%= currentPath.startsWith('/avaliacao') ? 'active' : '' %>">

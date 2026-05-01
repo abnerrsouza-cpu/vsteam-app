@@ -1,0 +1,227 @@
+<%- include('../partials/head') %>
+<div class="app">
+  <%- include('../partials/sidebar-client') %>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1>Treinar</h1>
+        <p class="text-muted mb-0">Cronômetro simples pro seu treino do dia. Sem pressa, sem pressão.</p>
+      </div>
+    </div>
+    <%- include('../partials/flash') %>
+
+    <% if (!todayWorkout) { %>
+      <div class="card text-center" style="padding:40px">
+        <h3>Sem treino marcado pra esta semana</h3>
+        <p class="text-muted">Quando o Victor postar seu treino, ele aparece aqui.</p>
+      </div>
+    <% } else { %>
+
+      <% if (workouts.length > 1) { %>
+        <div class="card" style="padding:14px">
+          <p class="fs-sm text-muted mb-1" style="margin:0 0 8px">Escolher treino:</p>
+          <div class="flex-gap gap-1" style="flex-wrap:wrap">
+            <% workouts.forEach(function(w){
+              const isCurrent = w.id === todayWorkout.id;
+            %>
+              <a href="/cliente/treinar?w=<%= w.id %>" class="btn btn-sm <%= isCurrent ? '' : 'btn-outline' %>">
+                <%= w.day_label %>: <%= w.title %>
+                <% if (w.completed_count > 0) { %><span style="opacity:0.7"> · <%= w.completed_count %>x</span><% } %>
+              </a>
+            <% }); %>
+          </div>
+        </div>
+      <% } %>
+
+      <div class="card" style="text-align:center; padding:30px 20px">
+        <div class="fs-sm text-muted" style="letter-spacing:2px">TREINO DE HOJE</div>
+        <h2 style="font-size:28px; margin:6px 0 14px"><%= todayWorkout.day_label %> — <%= todayWorkout.title %></h2>
+        <% if (todayWorkout.focus) { %><span class="badge badge-outline"><%= todayWorkout.focus %></span><% } %>
+
+        <div id="stopwatch" style="font-size:78px; font-weight:900; font-variant-numeric:tabular-nums; margin:24px 0 18px; line-height:1; letter-spacing:-2px">00:00</div>
+
+        <div class="flex-gap gap-1" style="justify-content:center; flex-wrap:wrap">
+          <button id="btnStart" class="btn" style="font-size:16px; padding:14px 28px; min-width:140px">Iniciar</button>
+          <button id="btnPause" class="btn btn-ghost" style="font-size:16px; padding:14px 28px; min-width:140px; display:none">Pausar</button>
+          <button id="btnReset" class="btn btn-outline" style="font-size:16px; padding:14px 28px; display:none">Zerar</button>
+        </div>
+        <p id="swStatus" class="fs-sm text-muted" style="margin-top:12px">Pronto pra começar 💪</p>
+      </div>
+
+      <div class="card">
+        <div class="flex-between mb-2">
+          <h3>Exercícios (<%= exercises.length %>)</h3>
+          <span class="fs-sm text-muted" id="checkCount">0 / <%= exercises.length %> feitos</span>
+        </div>
+        <% if (exercises.length === 0) { %>
+          <p class="text-muted">Nenhum exercício cadastrado neste treino ainda.</p>
+        <% } %>
+        <% exercises.forEach(function(e, i){ %>
+          <label class="exercise-checkbox" style="display:flex; align-items:flex-start; gap:14px; padding:14px; background:var(--bg-soft); border-radius:8px; margin-bottom:8px; cursor:pointer; border:1px solid var(--border)">
+            <input type="checkbox" class="ex-check-cb" data-ex="<%= e.id %>" style="width:22px; height:22px; cursor:pointer; flex-shrink:0; margin-top:2px">
+            <div style="flex:1">
+              <div style="font-weight:700"><%= i + 1 %>. <%= e.name %></div>
+              <div class="fs-sm text-muted" style="margin-top:2px">
+                <% if (e.sets) { %><%= e.sets %> séries<% } %>
+                <% if (e.reps) { %> × <%= e.reps %> reps<% } %>
+                <% if (e.rest) { %> · <%= e.rest %> de descanso<% } %>
+                <% if (e.load_kg) { %> · <%= e.load_kg %>kg<% } %>
+              </div>
+              <% if (e.notes) { %><div class="fs-sm text-muted" style="margin-top:4px"><em><%= e.notes %></em></div><% } %>
+            </div>
+            <% if (e.video_url) { %>
+              <a href="<%= e.video_url %>" target="_blank" class="btn btn-sm btn-ghost" style="flex-shrink:0" onclick="event.stopPropagation()">▶ Vídeo</a>
+            <% } %>
+          </label>
+        <% }); %>
+      </div>
+
+      <form action="/cliente/treinar/finalizar" method="POST" id="finishForm">
+        <input type="hidden" name="workout_id" value="<%= todayWorkout.id %>">
+        <input type="hidden" name="duration_sec" id="finalDuration" value="0">
+        <div class="card">
+          <div class="form-row">
+            <label>Como foi o treino? (opcional)</label>
+            <textarea name="notes" rows="3" placeholder="Como você se sentiu, o que rendeu, observações..."></textarea>
+          </div>
+          <button type="submit" class="btn btn-block" id="btnFinalizar" style="font-size:16px; padding:14px" disabled>Iniciar treino primeiro</button>
+        </div>
+      </form>
+
+      <% if (recentSessions.length > 0) { %>
+        <div class="card">
+          <h3>Histórico recente</h3>
+          <% recentSessions.forEach(function(s){
+            const min = Math.floor((s.duration_sec || 0) / 60);
+            const dt = (s.finished_at || '').slice(0, 10);
+          %>
+            <div style="padding:10px; background:var(--bg-soft); border-radius:8px; margin-bottom:8px" class="flex-between">
+              <div>
+                <strong><%= s.day_label %> — <%= s.title %></strong>
+                <div class="fs-sm text-muted"><%= dt %></div>
+              </div>
+              <span class="badge badge-outline"><%= min %> min</span>
+            </div>
+          <% }); %>
+        </div>
+      <% } %>
+    <% } %>
+  </main>
+</div>
+
+<script>
+(function(){
+  const display = document.getElementById('stopwatch');
+  const btnStart = document.getElementById('btnStart');
+  const btnPause = document.getElementById('btnPause');
+  const btnReset = document.getElementById('btnReset');
+  const status = document.getElementById('swStatus');
+  const finalDur = document.getElementById('finalDuration');
+  const btnFinal = document.getElementById('btnFinalizar');
+  if (!display) return;
+
+  // Estado salvo no localStorage (sobrevive a refresh)
+  const KEY_BASE = 'vsteam_sw_base';
+  const KEY_RUN = 'vsteam_sw_running';
+  const KEY_START = 'vsteam_sw_start';
+
+  let baseSec = parseInt(localStorage.getItem(KEY_BASE) || '0');
+  let running = localStorage.getItem(KEY_RUN) === '1';
+  let startTs = parseInt(localStorage.getItem(KEY_START) || '0');
+  let interval = null;
+
+  function fmt(s) {
+    const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), r = s%60;
+    if (h > 0) return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(r).padStart(2,'0');
+    return String(m).padStart(2,'0') + ':' + String(r).padStart(2,'0');
+  }
+  function currentSec() {
+    if (running && startTs) return baseSec + Math.floor((Date.now() - startTs) / 1000);
+    return baseSec;
+  }
+  function tick() {
+    const s = currentSec();
+    display.textContent = fmt(s);
+    finalDur.value = s;
+    if (s > 0) {
+      btnFinal.removeAttribute('disabled');
+      btnFinal.textContent = 'Finalizar treino (' + fmt(s) + ')';
+      btnReset.style.display = '';
+    }
+  }
+  function setRunning(r) {
+    running = r;
+    if (r) {
+      startTs = Date.now();
+      localStorage.setItem(KEY_RUN, '1');
+      localStorage.setItem(KEY_START, String(startTs));
+      btnStart.style.display = 'none';
+      btnPause.style.display = '';
+      status.textContent = '⏱ Cronometrando…';
+      interval = setInterval(tick, 500);
+    } else {
+      baseSec = currentSec();
+      localStorage.setItem(KEY_BASE, String(baseSec));
+      localStorage.setItem(KEY_RUN, '0');
+      localStorage.removeItem(KEY_START);
+      btnStart.style.display = '';
+      btnStart.textContent = 'Continuar';
+      btnPause.style.display = 'none';
+      status.textContent = '⏸ Pausado em ' + fmt(baseSec);
+      if (interval) clearInterval(interval);
+    }
+  }
+
+  btnStart.addEventListener('click', () => setRunning(true));
+  btnPause.addEventListener('click', () => setRunning(false));
+  btnReset.addEventListener('click', () => {
+    if (!confirm('Zerar o cronômetro?')) return;
+    if (interval) clearInterval(interval);
+    baseSec = 0; running = false; startTs = 0;
+    localStorage.removeItem(KEY_BASE);
+    localStorage.removeItem(KEY_RUN);
+    localStorage.removeItem(KEY_START);
+    btnStart.style.display = '';
+    btnStart.textContent = 'Iniciar';
+    btnPause.style.display = 'none';
+    btnReset.style.display = 'none';
+    btnFinal.setAttribute('disabled', 'disabled');
+    btnFinal.textContent = 'Iniciar treino primeiro';
+    status.textContent = 'Pronto pra começar 💪';
+    display.textContent = '00:00';
+    finalDur.value = 0;
+  });
+
+  // Restaurar estado
+  if (running) {
+    interval = setInterval(tick, 500);
+    btnStart.style.display = 'none';
+    btnPause.style.display = '';
+    status.textContent = '⏱ Cronometrando…';
+  } else if (baseSec > 0) {
+    btnStart.textContent = 'Continuar';
+    status.textContent = '⏸ Pausado em ' + fmt(baseSec);
+    btnReset.style.display = '';
+    btnFinal.removeAttribute('disabled');
+    btnFinal.textContent = 'Finalizar treino (' + fmt(baseSec) + ')';
+  }
+  tick();
+
+  // Limpa storage ao finalizar
+  document.getElementById('finishForm').addEventListener('submit', () => {
+    localStorage.removeItem(KEY_BASE);
+    localStorage.removeItem(KEY_RUN);
+    localStorage.removeItem(KEY_START);
+  });
+
+  // Contador de exercícios checados
+  const checkCount = document.getElementById('checkCount');
+  const cbs = document.querySelectorAll('.ex-check-cb');
+  function updateCheckCount() {
+    const done = Array.from(cbs).filter(c => c.checked).length;
+    checkCount.textContent = done + ' / ' + cbs.length + ' feitos';
+  }
+  cbs.forEach(cb => cb.addEventListener('change', updateCheckCount));
+})();
+</script>
+<%- include('../partials/foot') %>
