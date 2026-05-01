@@ -1,0 +1,72 @@
+<%- include('../partials/head') %>
+<div class="app">
+  <%- include('../partials/sidebar-admin') %>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1>Templates de Dieta</h1>
+        <p class="text-muted mb-0">Monte planos de refeição padrão (cutting, bulking, manutenção) e aplique nos clientes.</p>
+      </div>
+    </div>
+    <%- include('../partials/flash') %>
+
+    <div class="card" style="max-width:760px">
+      <h3>Novo Template</h3>
+      <form action="/admin/templates-dieta" method="POST">
+        <div class="form-row"><label>Nome *</label><input type="text" name="name" required placeholder="Cutting 2200 kcal"></div>
+        <div class="form-row"><label>Descrição</label><textarea name="description" rows="2" placeholder="Para quem é, observações gerais"></textarea></div>
+        <div class="form-grid">
+          <div class="form-row"><label>Calorias</label><input type="number" name="calories" placeholder="2200"></div>
+          <div class="form-row"><label>Proteína (g)</label><input type="number" name="protein"></div>
+          <div class="form-row"><label>Carbo (g)</label><input type="number" name="carbs"></div>
+          <div class="form-row"><label>Gordura (g)</label><input type="number" name="fats"></div>
+        </div>
+        <div class="form-row"><label>Plano alimentar</label><textarea name="meal_plan" rows="8" placeholder="Café: ...&#10;Almoço: ...&#10;Lanche: ...&#10;Jantar: ..."></textarea></div>
+        <div class="form-row"><label>Notas (suplementação, hidratação)</label><textarea name="notes" rows="2"></textarea></div>
+        <button class="btn" type="submit">Criar template</button>
+      </form>
+    </div>
+
+    <div class="card mt-3">
+      <h3>Templates existentes (<%= tpls.length %>)</h3>
+      <% if (tpls.length === 0) { %>
+        <p class="text-muted">Nenhum template ainda.</p>
+      <% } else { %>
+        <% tpls.forEach(function(tpl){ %>
+          <details style="background:var(--bg-soft); border-radius:8px; margin-bottom:10px; padding:14px">
+            <summary style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; list-style:none">
+              <div>
+                <strong><%= tpl.name %></strong>
+                <div class="fs-sm text-muted">
+                  <% if (tpl.calories) { %><%= tpl.calories %> kcal · <% } %>
+                  <% if (tpl.protein) { %>P: <%= tpl.protein %>g · <% } %>
+                  <% if (tpl.carbs) { %>C: <%= tpl.carbs %>g · <% } %>
+                  <% if (tpl.fats) { %>G: <%= tpl.fats %>g<% } %>
+                </div>
+              </div>
+              <span class="text-primary fs-sm">Editar →</span>
+            </summary>
+
+            <form action="/admin/templates-dieta/<%= tpl.id %>/update" method="POST" class="mt-2">
+              <div class="form-row"><label>Nome</label><input type="text" name="name" value="<%= tpl.name %>" required></div>
+              <div class="form-row"><label>Descrição</label><textarea name="description" rows="2"><%= tpl.description || '' %></textarea></div>
+              <div class="form-grid">
+                <div class="form-row"><label>Calorias</label><input type="number" name="calories" value="<%= tpl.calories || '' %>"></div>
+                <div class="form-row"><label>Proteína</label><input type="number" name="protein" value="<%= tpl.protein || '' %>"></div>
+                <div class="form-row"><label>Carbo</label><input type="number" name="carbs" value="<%= tpl.carbs || '' %>"></div>
+                <div class="form-row"><label>Gordura</label><input type="number" name="fats" value="<%= tpl.fats || '' %>"></div>
+              </div>
+              <div class="form-row"><label>Plano</label><textarea name="meal_plan" rows="6"><%= tpl.meal_plan || '' %></textarea></div>
+              <div class="form-row"><label>Notas</label><textarea name="notes" rows="2"><%= tpl.notes || '' %></textarea></div>
+              <div class="flex-gap gap-1">
+                <button class="btn btn-sm" type="submit">Salvar</button>
+                <button class="btn btn-sm btn-ghost" type="submit" formaction="/admin/templates-dieta/<%= tpl.id %>/delete" formmethod="POST" data-confirm="Apagar?">Apagar</button>
+              </div>
+            </form>
+          </details>
+        <% }); %>
+      <% } %>
+    </div>
+  </main>
+</div>
+<%- include('../partials/foot') %>

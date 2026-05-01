@@ -1,0 +1,56 @@
+<%- include('../partials/head') %>
+<div class="app">
+  <%- include('../partials/sidebar-admin') %>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <a href="/admin/clientes/<%= cliente.id %>" class="text-muted fs-sm">← <%= cliente.name %></a>
+        <h1>Progressão de Carga</h1>
+        <p class="text-muted mb-0">Evolução do peso máximo registrado por exercício, baseado nas sessões de treino concluídas pelo aluno.</p>
+      </div>
+    </div>
+    <%- include('../partials/flash') %>
+
+    <% if (progression.length === 0) { %>
+      <div class="card text-center" style="padding:40px">
+        <h3>Sem dados de progressão ainda</h3>
+        <p class="text-muted">Quando o cliente concluir treinos com peso registrado em pelo menos 2 datas diferentes, os gráficos aparecem aqui.</p>
+      </div>
+    <% } else { %>
+      <div class="kpi-row mb-3">
+        <div class="stat success">
+          <div class="label">Exercícios analisados</div>
+          <div class="value"><%= progression.length %></div>
+        </div>
+        <% const maioresGanhos = progression.filter(e => e.delta > 0).slice(0, 1)[0]; %>
+        <% if (maioresGanhos) { %>
+          <div class="stat accent">
+            <div class="label">Maior ganho</div>
+            <div class="value">+<%= maioresGanhos.delta %>kg</div>
+            <div class="extra"><%= maioresGanhos.name %></div>
+          </div>
+        <% } %>
+      </div>
+
+      <div class="grid grid-2">
+        <% progression.forEach(function(ex){ %>
+          <div class="card">
+            <div class="flex-between mb-1">
+              <h3 style="margin:0; font-size:15px"><%= ex.name %></h3>
+              <span class="badge <%= ex.delta > 0 ? 'badge-success' : (ex.delta < 0 ? 'badge-danger' : 'badge-outline') %>">
+                <%= ex.delta > 0 ? '+' : '' %><%= ex.delta %>kg
+                <% if (ex.deltaPct !== 0) { %> (<%= ex.deltaPct > 0 ? '+' : '' %><%= ex.deltaPct %>%)<% } %>
+              </span>
+            </div>
+            <div class="fs-sm text-muted mb-2">
+              <%= ex.firstWeight %>kg → <%= ex.lastWeight %>kg · <%= ex.points.length %> sessões registradas
+            </div>
+
+            <%- include('../partials/chart-line', { points: ex.points, height: 140 }) %>
+          </div>
+        <% }); %>
+      </div>
+    <% } %>
+  </main>
+</div>
+<%- include('../partials/foot') %>

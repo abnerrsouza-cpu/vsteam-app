@@ -1,0 +1,105 @@
+<%- include('../partials/head') %>
+<div class="app">
+  <%- include('../partials/sidebar-admin') %>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1>Implementação</h1>
+        <p class="text-muted mb-0">Acompanhe onde cada aluno está no onboarding: questionário → fotos → treino. O aluno preenche, você só monitora.</p>
+      </div>
+    </div>
+    <%- include('../partials/flash') %>
+
+    <% if (clientes.length === 0) { %>
+      <div class="card text-center">
+        <h3>Nenhum aluno em implementação</h3>
+        <p class="text-muted">Quando você converte um lead ou cadastra um novo aluno, ele aparece aqui pra acompanhar a entrada.</p>
+      </div>
+    <% } else { %>
+      <div class="list-toolbar">
+        <div class="search-box">
+          <input type="text" placeholder="Buscar aluno..." data-search-target=".impl-row">
+        </div>
+        <select data-filter-target=".impl-row">
+          <option value="">Todas as etapas</option>
+          <option value="0">Aguardando questionário</option>
+          <option value="1">Aguardando fotos</option>
+          <option value="2">Aguardando treino</option>
+          <option value="3">Pronto pra ativar</option>
+        </select>
+        <div class="view-toggle">
+          <button data-view="cards" class="active">Cards</button>
+          <button data-view="list">Lista</button>
+        </div>
+      </div>
+
+      <form action="/admin/clientes/excluir-em-massa" method="POST" data-bulk-form="#bulkBar" data-confirm="Excluir os alunos selecionados? Permanente.">
+        <div id="bulkBar" class="bulk-bar">
+          <strong>📌 <span class="count">0</span> selecionado(s)</strong>
+          <button class="btn btn-sm" type="submit" style="background:var(--danger);margin-left:auto">Excluir selecionados</button>
+        </div>
+
+        <div data-view-wrap>
+          <div class="cards-view active grid grid-auto" style="gap:14px">
+            <% clientes.forEach(function(c){
+              const step1 = c.has_questionnaire > 0;
+              const step2 = c.photos_count > 0;
+              const step3 = c.has_workout > 0;
+              const stage = (step1?1:0) + (step2?1:0) + (step3?1:0);
+              const pct = Math.round(stage * 100 / 3);
+            %>
+              <div class="impl-row client-card" data-filter="<%= stage %>"
+                   data-search-text="<%= c.name %> <%= c.email %> <%= c.plan || '' %>" style="position:relative">
+                <input type="checkbox" name="ids" value="<%= c.id %>"
+                       style="position:absolute;top:14px;right:14px;width:18px;height:18px;cursor:pointer;z-index:2"
+                       onclick="event.stopPropagation()">
+                <a href="/admin/clientes/<%= c.id %>" style="display:block;text-decoration:none;color:inherit">
+                  <div class="ava"><%= c.name.charAt(0).toUpperCase() %></div>
+                  <div class="name"><%= c.name %></div>
+                  <div class="sub"><%= c.plan || 'Sem plano' %> · <%= c.plan_duration || '' %></div>
+                  <div class="progress"><div class="progress-bar" style="width:<%= pct %>%"></div></div>
+                  <div class="fs-sm text-muted mb-2"><%= pct %>% completo</div>
+                  <div class="flex-gap gap-1" style="flex-wrap:wrap">
+                    <span class="badge <%= step1 ? 'badge-success' : 'badge-outline' %>"><%= step1 ? '✓' : '○' %> Questionário</span>
+                    <span class="badge <%= step2 ? 'badge-success' : 'badge-outline' %>"><%= step2 ? '✓' : '○' %> Fotos</span>
+                    <span class="badge <%= step3 ? 'badge-success' : 'badge-outline' %>"><%= step3 ? '✓' : '○' %> Treino</span>
+                  </div>
+                  <div class="meta" style="border:0"><span class="k">Contato</span><span class="v"><%= c.phone || c.instagram || '—' %></span></div>
+                </a>
+              </div>
+            <% }); %>
+          </div>
+
+          <div class="list-view">
+            <div class="list-view-row" style="background:var(--bg-soft);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);font-weight:700;cursor:default">
+              <input type="checkbox" data-check-all style="width:16px;height:16px">
+              <span></span>
+              <span>Aluno</span>
+              <span>Etapa</span>
+              <span>Progresso</span>
+            </div>
+            <% clientes.forEach(function(c){
+              const step1 = c.has_questionnaire > 0, step2 = c.photos_count > 0, step3 = c.has_workout > 0;
+              const stage = (step1?1:0) + (step2?1:0) + (step3?1:0);
+              const labels = ['Questionário', 'Fotos', 'Treino', 'Pronto'];
+            %>
+              <div class="list-view-row impl-row" data-filter="<%= stage %>"
+                   data-search-text="<%= c.name %>"
+                   onclick="if(event.target.tagName !== 'INPUT') location.href='/admin/clientes/<%= c.id %>'">
+                <input type="checkbox" name="ids" value="<%= c.id %>" onclick="event.stopPropagation()">
+                <div class="ava"><%= c.name.charAt(0).toUpperCase() %></div>
+                <div class="info">
+                  <strong><%= c.name %></strong>
+                  <span class="sub"><%= c.email %></span>
+                </div>
+                <span class="badge badge-outline">Aguardando: <%= labels[stage] %></span>
+                <div style="width:120px"><div class="progress"><div class="progress-bar" style="width:<%= Math.round(stage*100/3) %>%"></div></div></div>
+              </div>
+            <% }); %>
+          </div>
+        </div>
+      </form>
+    <% } %>
+  </main>
+</div>
+<%- include('../partials/foot') %>

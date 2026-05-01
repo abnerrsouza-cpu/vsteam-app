@@ -1,0 +1,54 @@
+<%- include('../partials/head') %>
+<div class="app">
+  <%- include('../partials/sidebar-client') %>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1>Minha Progressão</h1>
+        <p class="text-muted mb-0">Sua evolução de peso por exercício, baseada nos treinos concluídos.</p>
+      </div>
+    </div>
+    <%- include('../partials/flash') %>
+
+    <% if (progression.length === 0) { %>
+      <div class="card text-center" style="padding:40px">
+        <h3>Em construção 🔥</h3>
+        <p class="text-muted">Continue completando treinos com peso registrado. Quando você tiver pelo menos 2 sessões em datas diferentes, seus gráficos de evolução aparecem aqui.</p>
+        <a href="/cliente/treinos" class="btn mt-2">Ir para meus treinos</a>
+      </div>
+    <% } else { %>
+      <div class="kpi-row mb-3">
+        <div class="stat accent">
+          <div class="label">Exercícios com evolução</div>
+          <div class="value"><%= progression.length %></div>
+        </div>
+        <% const top = progression.filter(e => e.delta > 0)[0]; %>
+        <% if (top) { %>
+          <div class="stat success">
+            <div class="label">Maior ganho</div>
+            <div class="value">+<%= top.delta %>kg</div>
+            <div class="extra"><%= top.name %></div>
+          </div>
+        <% } %>
+      </div>
+
+      <div class="grid grid-2">
+        <% progression.forEach(function(ex){ %>
+          <div class="card">
+            <div class="flex-between mb-1">
+              <h3 style="margin:0; font-size:15px"><%= ex.name %></h3>
+              <span class="badge <%= ex.delta > 0 ? 'badge-success' : (ex.delta < 0 ? 'badge-danger' : 'badge-outline') %>">
+                <%= ex.delta > 0 ? '+' : '' %><%= ex.delta %>kg
+              </span>
+            </div>
+            <div class="fs-sm text-muted mb-2">
+              <%= ex.firstWeight %>kg → <%= ex.lastWeight %>kg · <%= ex.points.length %> sessões
+            </div>
+            <%- include('../partials/chart-line', { points: ex.points, height: 140 }) %>
+          </div>
+        <% }); %>
+      </div>
+    <% } %>
+  </main>
+</div>
+<%- include('../partials/foot') %>

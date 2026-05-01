@@ -1,0 +1,27 @@
+{
+  "name": "vs-team-app",
+  "version": "1.0.0",
+  "description": "Sistema de gest\u00e3o VS TEAM - Consultoria Online de Personal Trainer (Admin CRM + \u00c1rea do Cliente)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "seed": "node database.js --seed",
+    "postinstall": "echo \"deps instaladas\""
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.3.0",
+    "connect-flash": "^0.1.1",
+    "ejs": "^3.1.10",
+    "express": "^4.21.0",
+    "express-session": "^1.18.0",
+    "method-override": "^3.0.0",
+    "multer": "^1.4.5-lts.1"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "author": "VS TEAM",
+  "license": "UNLICENSED"
+}

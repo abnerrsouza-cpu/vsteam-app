@@ -1,0 +1,91 @@
+<%- include('../partials/head') %>
+<div class="app">
+  <%- include('../partials/sidebar-admin') %>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1>Vencimentos</h1>
+        <p class="text-muted mb-0">Acompanhe os planos próximos do fim, vencidos e clientes sem vigência definida.</p>
+      </div>
+    </div>
+    <%- include('../partials/flash') %>
+
+    <div class="kpi-row mb-3">
+      <div class="stat warning">
+        <div class="label">Próximos 30 dias</div>
+        <div class="value"><%= counts.proximos %></div>
+      </div>
+      <div class="stat">
+        <div class="label">Vencidos</div>
+        <div class="value" style="color:var(--danger)"><%= counts.vencidos %></div>
+        <div class="extra">em carência</div>
+      </div>
+      <div class="stat info">
+        <div class="label">Sem vigência</div>
+        <div class="value"><%= counts.sem_vigencia %></div>
+        <div class="extra">defina prazo</div>
+      </div>
+      <div class="stat success">
+        <div class="label">Total ativos</div>
+        <div class="value"><%= counts.todos %></div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <a href="/admin/vencimentos?filtro=proximos" class="<%= filtro === 'proximos' ? 'active' : '' %>">Próximos (<%= counts.proximos %>)</a>
+      <a href="/admin/vencimentos?filtro=vencidos" class="<%= filtro === 'vencidos' ? 'active' : '' %>">Vencidos (<%= counts.vencidos %>)</a>
+      <a href="/admin/vencimentos?filtro=sem_vigencia" class="<%= filtro === 'sem_vigencia' ? 'active' : '' %>">Sem vigência (<%= counts.sem_vigencia %>)</a>
+      <a href="/admin/vencimentos?filtro=todos" class="<%= filtro === 'todos' ? 'active' : '' %>">Todos</a>
+    </div>
+
+    <div class="card">
+      <% if (clientes.length === 0) { %>
+        <p class="text-muted text-center" style="padding:30px">Nenhum cliente neste filtro.</p>
+      <% } else { %>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Cliente</th>
+              <th>Plano</th>
+              <th>Vencimento</th>
+              <th>Status</th>
+              <th>Contato</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% clientes.forEach(function(c){ %>
+              <tr style="cursor:pointer" onclick="if(event.target.tagName !== 'BUTTON' && !event.target.closest('form')) location.href='/admin/clientes/<%= c.id %>'">
+                <td>
+                  <strong><%= c.name %></strong>
+                  <div class="fs-sm text-muted"><%= c.email %></div>
+                </td>
+                <td>
+                  <%= c.plan || '—' %>
+                  <% if (c.value) { %><div class="fs-sm text-muted">R$ <%= Number(c.value).toFixed(2).replace('.', ',') %></div><% } %>
+                </td>
+                <td><%= c.end_date ? c.end_date.split('-').reverse().join('/') : '—' %></td>
+                <td><span class="badge badge-<%= c.exp.badge %>"><%= c.exp.label %></span></td>
+                <td class="fs-sm"><%= c.phone || c.instagram || '—' %></td>
+                <td style="text-align:right">
+                  <details class="renew-quick" style="display:inline-block;position:relative">
+                    <summary class="btn btn-sm" style="list-style:none">Renovar ▾</summary>
+                    <div style="position:absolute;right:0;top:calc(100% + 4px);background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:8px;z-index:10;box-shadow:var(--shadow);min-width:140px">
+                      <% [1, 3, 6, 12].forEach(function(m){ %>
+                        <form action="/admin/clientes/<%= c.id %>/renovar" method="POST" style="margin:0">
+                          <input type="hidden" name="meses" value="<%= m %>">
+                          <button class="btn btn-sm btn-ghost btn-block" type="submit" style="text-align:left;width:100%;margin-bottom:2px">+ <%= m %> <%= m === 1 ? 'mês' : 'meses' %></button>
+                        </form>
+                      <% }); %>
+                    </div>
+                  </details>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      <% } %>
+    </div>
+  </main>
+</div>
+<%- include('../partials/foot') %>

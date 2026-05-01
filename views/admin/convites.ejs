@@ -1,0 +1,178 @@
+<%- include('../partials/head') %>
+<div class="app">
+  <%- include('../partials/sidebar-admin') %>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1>Convites</h1>
+        <p class="text-muted mb-0">Gere um link único, mande pro cliente e ele entra direto preenchendo tudo. Reduz fricção do onboarding.</p>
+      </div>
+    </div>
+    <%- include('../partials/flash') %>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <h3>Gerar novo convite</h3>
+        <form action="/admin/convites" method="POST">
+          <div class="form-row">
+            <label>Rótulo (apenas pra você identificar)</label>
+            <input type="text" name="label" placeholder="Ex: Indicação do João, Story de 30/04...">
+          </div>
+          <div class="form-grid">
+            <div class="form-row">
+              <label>Plano</label>
+              <select name="plan">
+                <option value="">— escolher —</option>
+                <option>Consultoria Start</option>
+                <option>Consultoria VIP</option>
+                <option>Consultoria Premium</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label>Duração (rótulo)</label>
+              <input type="text" name="plan_duration" placeholder="3 meses">
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="form-row">
+              <label>Valor (R$)</label>
+              <input type="number" step="0.01" name="plan_value" placeholder="897.00">
+            </div>
+            <div class="form-row">
+              <label>Meses (vigência)</label>
+              <input type="number" name="plan_months" placeholder="3" min="1">
+              <small class="fs-sm text-muted">Define a data de vencimento automaticamente.</small>
+            </div>
+          </div>
+          <div class="form-row">
+            <label>Validade do link</label>
+            <select name="expires_in_days">
+              <option value="">Sem prazo (vale para sempre)</option>
+              <option value="3">3 dias</option>
+              <option value="7" selected>7 dias</option>
+              <option value="15">15 dias</option>
+              <option value="30">30 dias</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label style="display:flex;align-items:center;gap:8px;font-size:14px;text-transform:none;letter-spacing:0">
+              <input type="checkbox" name="request_anamnese" value="1" checked> Solicitar questionário inicial (anamnese)
+            </label>
+          </div>
+          <div class="form-row">
+            <label style="display:flex;align-items:center;gap:8px;font-size:14px;text-transform:none;letter-spacing:0">
+              <input type="checkbox" name="request_photos" value="1" checked> Solicitar fotos iniciais
+            </label>
+          </div>
+          <button class="btn btn-block" type="submit">Gerar link</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>Templates salvos</h3>
+        <p class="fs-sm text-muted">Crie templates pra gerar convites repetitivos com 1 clique.</p>
+        <% if (templates.length === 0) { %>
+          <p class="fs-sm text-muted">Nenhum template ainda.</p>
+        <% } %>
+        <% templates.forEach(function(tpl){ %>
+          <div style="padding:10px;background:var(--bg-soft);border-radius:8px;margin-bottom:8px">
+            <div class="flex-between">
+              <div>
+                <strong><%= tpl.name %></strong>
+                <div class="fs-sm text-muted"><%= tpl.plan || '—' %> · <%= tpl.plan_duration || '' %> <% if (tpl.plan_value) { %>· R$ <%= Number(tpl.plan_value).toFixed(2).replace('.', ',') %><% } %></div>
+              </div>
+              <div class="flex-gap gap-1">
+                <form action="/admin/convite-templates/<%= tpl.id %>/usar" method="POST" style="margin:0">
+                  <button class="btn btn-sm" type="submit">Gerar</button>
+                </form>
+                <form action="/admin/convite-templates/<%= tpl.id %>/delete" method="POST" data-confirm="Apagar template?" style="margin:0">
+                  <button class="btn btn-sm btn-ghost" type="submit">×</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        <% }); %>
+
+        <details class="mt-2">
+          <summary class="btn btn-sm btn-outline" style="list-style:none">+ Novo template</summary>
+          <form action="/admin/convite-templates" method="POST" class="mt-2">
+            <div class="form-row"><label>Nome do template *</label><input type="text" name="name" required placeholder="Ex: VIP 3 meses"></div>
+            <div class="form-grid">
+              <div class="form-row"><label>Plano</label><input type="text" name="plan"></div>
+              <div class="form-row"><label>Duração</label><input type="text" name="plan_duration"></div>
+            </div>
+            <div class="form-grid">
+              <div class="form-row"><label>Valor (R$)</label><input type="number" step="0.01" name="plan_value"></div>
+              <div class="form-row"><label>Meses</label><input type="number" name="plan_months"></div>
+            </div>
+            <div class="form-row">
+              <label style="display:flex;align-items:center;gap:8px;font-size:14px;text-transform:none;letter-spacing:0">
+                <input type="checkbox" name="request_anamnese" value="1" checked> Pedir anamnese
+              </label>
+            </div>
+            <div class="form-row">
+              <label style="display:flex;align-items:center;gap:8px;font-size:14px;text-transform:none;letter-spacing:0">
+                <input type="checkbox" name="request_photos" value="1" checked> Pedir fotos
+              </label>
+            </div>
+            <button class="btn btn-sm" type="submit">Salvar template</button>
+          </form>
+        </details>
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <h3>Convites ativos (<%= ativos.length %>)</h3>
+      <% if (ativos.length === 0) { %>
+        <p class="text-muted">Nenhum convite ativo. Gere um ao lado.</p>
+      <% } else { %>
+        <table class="table">
+          <thead><tr><th>Rótulo</th><th>Plano</th><th>Pede</th><th>Validade</th><th>Link</th><th></th></tr></thead>
+          <tbody>
+            <% ativos.forEach(function(c){
+              const link = baseUrl + '/convite/' + c.token;
+            %>
+              <tr>
+                <td><strong><%= c.label || '—' %></strong></td>
+                <td><%= c.plan || '—' %><% if (c.plan_value) { %><div class="fs-sm text-muted">R$ <%= Number(c.plan_value).toFixed(2).replace('.', ',') %></div><% } %></td>
+                <td class="fs-sm">
+                  <% if (c.request_anamnese) { %>📋<% } %>
+                  <% if (c.request_photos) { %>📸<% } %>
+                </td>
+                <td class="fs-sm"><%= c.expires_at ? c.expires_at.split('-').reverse().join('/') : 'Sem prazo' %></td>
+                <td>
+                  <button class="btn btn-sm btn-outline" type="button" onclick="navigator.clipboard.writeText('<%= link %>'); this.textContent='✓ Copiado'">Copiar link</button>
+                </td>
+                <td>
+                  <form action="/admin/convites/<%= c.id %>/delete" method="POST" data-confirm="Cancelar este convite?" style="margin:0">
+                    <button class="btn btn-sm btn-ghost" type="submit">×</button>
+                  </form>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      <% } %>
+    </div>
+
+    <% if (usados.length > 0) { %>
+    <div class="card mt-3">
+      <h3>Histórico (últimos <%= usados.length %> usados)</h3>
+      <table class="table">
+        <thead><tr><th>Rótulo</th><th>Cliente convertido</th><th>Plano</th><th>Usado em</th></tr></thead>
+        <tbody>
+          <% usados.forEach(function(c){ %>
+            <tr>
+              <td><%= c.label || '—' %></td>
+              <td><strong><%= c.cliente_name || '—' %></strong></td>
+              <td><%= c.plan || '—' %></td>
+              <td class="fs-sm"><%= c.used_at ? c.used_at.slice(0,16).replace('T', ' ') : '' %></td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+    <% } %>
+  </main>
+</div>
+<%- include('../partials/foot') %>

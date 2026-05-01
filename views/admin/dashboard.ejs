@@ -1,0 +1,130 @@
+<%- include('../partials/head') %>
+<div class="app">
+  <%- include('../partials/sidebar-admin') %>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1>Dashboard</h1>
+        <p class="text-muted mb-0">Fala, <%= currentUser.name %>. Aqui tá o panorama do negócio 🔥</p>
+      </div>
+      <div class="actions">
+        <a href="/admin/captacao" class="btn">+ Nova Captação</a>
+      </div>
+    </div>
+    <%- include('../partials/flash') %>
+
+    <div class="kpi-row mb-3">
+      <div class="stat accent">
+        <div class="label">Leads no Funil</div>
+        <div class="value"><%= stats.leads_total %></div>
+        <div class="extra"><%= stats.leads_captacao %> em captação</div>
+      </div>
+      <div class="stat warning">
+        <div class="label">Em Negociação</div>
+        <div class="value"><%= stats.leads_vendas %></div>
+        <div class="extra"><%= stats.leads_contrato %> com contrato em aberto</div>
+      </div>
+      <div class="stat info">
+        <div class="label">Em Implementação</div>
+        <div class="value"><%= stats.clientes_implementacao %></div>
+        <div class="extra">onboarding em andamento</div>
+      </div>
+      <div class="stat success">
+        <div class="label">Clientes Ativos</div>
+        <div class="value"><%= stats.clientes_ativos %></div>
+        <div class="extra">ciclo contínuo</div>
+      </div>
+      <div class="stat warning">
+        <div class="label">Vence em 7 dias</div>
+        <div class="value"><%= venc.sete_dias %></div>
+        <div class="extra"><%= venc.hoje %> vence hoje · <%= venc.vencidos %> vencidos</div>
+      </div>
+      <div class="stat">
+        <div class="label">Receita Atual</div>
+        <div class="value">R$ <%= (stats.receita_mes || 0).toFixed(2).replace('.', ',') %></div>
+        <div class="extra">valor total em contratos</div>
+      </div>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <div class="flex-between mb-2">
+          <h3>Leads Recentes</h3>
+          <a href="/admin/vendas" class="btn btn-sm btn-outline">Ver pipeline →</a>
+        </div>
+        <% if (leadsRecentes.length === 0) { %>
+          <p class="text-muted">Nenhum lead no funil. Hora de caçar! 🎯</p>
+        <% } else { %>
+          <table class="table">
+            <thead><tr><th>Nome</th><th>Origem</th><th>Estágio</th></tr></thead>
+            <tbody>
+              <% leadsRecentes.forEach(function(l){ %>
+                <tr onclick="location.href='/admin/leads/<%= l.id %>'" style="cursor:pointer">
+                  <td><strong><%= l.name %></strong></td>
+                  <td><span class="badge badge-outline"><%= l.source %></span></td>
+                  <td><span class="badge badge-primary"><%= l.stage %></span></td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        <% } %>
+      </div>
+
+      <div class="card">
+        <div class="flex-between mb-2">
+          <h3>Clientes em Foco</h3>
+          <a href="/admin/clientes" class="btn btn-sm btn-outline">Ver todos →</a>
+        </div>
+        <% if (clientesAtencao.length === 0) { %>
+          <p class="text-muted">Ainda sem clientes. Bora converter os leads!</p>
+        <% } else { %>
+          <% clientesAtencao.forEach(function(c){ %>
+            <a href="/admin/clientes/<%= c.id %>" class="flex-gap mb-1" style="padding:10px;background:var(--bg-soft);border-radius:8px;text-decoration:none;color:var(--text)">
+              <div class="user-avatar" style="width:36px;height:36px;font-size:14px;background:linear-gradient(135deg,var(--primary),var(--primary-dim));display:flex;align-items:center;justify-content:center;border-radius:50%;color:#fff;font-weight:700"><%= c.name.charAt(0).toUpperCase() %></div>
+              <div style="flex:1">
+                <div class="fw-bold"><%= c.name %></div>
+                <div class="fs-sm text-muted">Semana <%= c.current_week %> · <%= c.status %></div>
+              </div>
+              <span class="badge badge-outline"><%= c.plan || 's/plano' %></span>
+            </a>
+          <% }); %>
+        <% } %>
+      </div>
+    </div>
+
+    <% if (proximosVenc && proximosVenc.length > 0) { %>
+    <div class="card mt-3" style="border-left:3px solid var(--warning)">
+      <div class="flex-between mb-2">
+        <h3>Próximos vencimentos</h3>
+        <a href="/admin/vencimentos" class="btn btn-sm btn-outline">Ver todos →</a>
+      </div>
+      <% proximosVenc.forEach(function(c){ %>
+        <a href="/admin/clientes/<%= c.id %>" style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:var(--bg-soft);border-radius:8px;margin-bottom:6px;text-decoration:none;color:var(--text)">
+          <strong><%= c.name %></strong>
+          <span class="badge badge-<%= c.exp.badge %>"><%= c.exp.label %></span>
+        </a>
+      <% }); %>
+    </div>
+    <% } %>
+
+    <div class="card mt-3">
+      <h3>Jornada VS TEAM</h3>
+      <p class="text-muted">Fluxo completo de cada cliente — da captação ao ciclo semanal.</p>
+      <div class="grid grid-3 gap-2 mt-2">
+        <div style="padding:14px;background:var(--bg-soft);border-radius:8px;border-left:3px solid var(--accent)">
+          <strong>1. Vendas</strong>
+          <div class="fs-sm text-muted">Captação → Conversa → Vendas → Negociação → Contrato</div>
+        </div>
+        <div style="padding:14px;background:var(--bg-soft);border-radius:8px;border-left:3px solid var(--info)">
+          <strong>2. Implementação</strong>
+          <div class="fs-sm text-muted">Questionário → Fotos iniciais → Montagem treino/dieta</div>
+        </div>
+        <div style="padding:14px;background:var(--bg-soft);border-radius:8px;border-left:3px solid var(--success)">
+          <strong>3. Gestão Contínua</strong>
+          <div class="fs-sm text-muted">Lembrete quarta → Fotos + ficha sábado → Feedback → Novo treino</div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+<%- include('../partials/foot') %>

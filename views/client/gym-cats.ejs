@@ -1,0 +1,81 @@
+<%- include('../partials/head') %>
+<div class="app">
+  <%- include('../partials/sidebar-client') %>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1>Gym Cats</h1>
+        <p class="text-muted mb-0">Ranking da galera VS TEAM. Quem trabalha, aparece no topo.</p>
+      </div>
+    </div>
+    <%- include('../partials/flash') %>
+
+    <div class="kpi-row mb-3">
+      <div class="stat accent">
+        <div class="label">Sua Posição</div>
+        <div class="value">#<%= minhaPosicao %></div>
+        <div class="extra">de <%= ranking.length %> atletas</div>
+      </div>
+      <% const me = ranking.find(c => c.id === meuId); if (me) { %>
+      <div class="stat">
+        <div class="label">Seus Pontos</div>
+        <div class="value"><%= me.gym_cats_points %></div>
+        <div class="extra">Gym Cats</div>
+      </div>
+      <% } %>
+    </div>
+
+    <div class="grid grid-2">
+      <div>
+        <h3>🔥 Ranking</h3>
+        <% ranking.forEach(function(c, i){
+          const rank = i + 1;
+          const cls = (c.id === meuId ? 'me ' : '') + (rank === 1 ? 'top-1' : rank === 2 ? 'top-2' : rank === 3 ? 'top-3' : '');
+        %>
+          <div class="ranking-item <%= cls %>">
+            <div class="pos">#<%= rank %></div>
+            <div class="ava"><%= c.name.charAt(0).toUpperCase() %></div>
+            <div class="info">
+              <div class="n"><%= c.name %><%= c.id === meuId ? ' (você)' : '' %></div>
+              <div class="s"><%= c.instagram || '' %> · Sem <%= c.current_week %></div>
+            </div>
+            <div class="pts"><%= c.gym_cats_points %><br><small>PTS</small></div>
+          </div>
+        <% }); %>
+      </div>
+
+      <div>
+        <div class="card">
+          <h3>💡 Como ganhar pontos</h3>
+          <table class="table">
+            <tbody>
+              <tr><td>Check-in de exercício</td><td class="text-right text-primary fw-bold">+2</td></tr>
+              <tr><td>Check-in semanal completo</td><td class="text-right text-primary fw-bold">+50</td></tr>
+              <tr><td>Foto semanal enviada</td><td class="text-right text-primary fw-bold">+30</td></tr>
+              <tr><td>Ficha de avaliação</td><td class="text-right text-primary fw-bold">+40</td></tr>
+              <tr><td>Questionário preenchido</td><td class="text-right text-primary fw-bold">+50</td></tr>
+              <tr><td>4 semanas consecutivas</td><td class="text-right text-primary fw-bold">+100</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <h3>📋 Seus últimos pontos</h3>
+          <% if (myEvents.length === 0) { %>
+            <p class="text-muted fs-sm">Ainda sem atividades pontuadas.</p>
+          <% } %>
+          <% myEvents.forEach(function(e){ %>
+            <div style="padding:8px 0;border-bottom:1px solid var(--border)" class="flex-between">
+              <div class="fs-sm">
+                <strong><%= e.action %></strong>
+                <div class="text-muted"><%= e.earned_at.slice(0,10) %></div>
+              </div>
+              <span style="color:var(--accent);font-weight:700">+<%= e.points %></span>
+            </div>
+          <% }); %>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+<%- include('../partials/foot') %>

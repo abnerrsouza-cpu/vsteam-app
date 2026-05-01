@@ -1,0 +1,44 @@
+<%- include('../partials/head') %>
+<div class="app">
+  <%- include('../partials/sidebar-client') %>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1>Meu Perfil</h1>
+        <p class="text-muted mb-0">Atualize seus dados de contato.</p>
+      </div>
+    </div>
+    <%- include('../partials/flash') %>
+
+    <div class="card" style="max-width:600px">
+      <form action="/cliente/perfil" method="POST">
+        <div class="form-row">
+          <label>Nome</label>
+          <input type="text" name="name" value="<%= cliente.name %>" required>
+        </div>
+        <div class="form-row">
+          <label>Email (não editável)</label>
+          <input type="email" value="<%= cliente.email %>" disabled>
+        </div>
+        <div class="form-grid">
+          <div class="form-row"><label>Whatsapp</label><input type="tel" name="phone" value="<%= cliente.phone || '' %>"></div>
+          <div class="form-row"><label>Instagram</label><input type="text" name="instagram" value="<%= cliente.instagram || '' %>"></div>
+        </div>
+        <button class="btn" type="submit">Salvar</button>
+      </form>
+    </div>
+
+    <div class="card" style="max-width:600px">
+      <h3>Dados do programa</h3>
+      <div class="grid grid-2">
+        <div><span class="text-muted fs-sm">Plano:</span><br><strong><%= cliente.plan || '—' %></strong></div>
+        <div><span class="text-muted fs-sm">Duração:</span><br><strong><%= cliente.plan_duration || '—' %></strong></div>
+        <div><span class="text-muted fs-sm">Início:</span><br><strong><%= cliente.start_date || '—' %></strong></div>
+        <div><span class="text-muted fs-sm">Semana atual:</span><br><strong><%= cliente.current_week %></strong></div>
+        <div><span class="text-muted fs-sm">Status:</span><br><strong><%= cliente.status %></strong></div>
+        <div><span class="text-muted fs-sm">Pontos Gym Cats:</span><br><strong style="color:var(--accent)"><%= cliente.gym_cats_points %> pts</strong></div>
+      </div>
+    </div>
+  </main>
+</div>
+<%- include('../partials/foot') %>

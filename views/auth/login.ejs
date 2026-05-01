@@ -1,0 +1,29 @@
+<%- include('../partials/head') %>
+<div class="login-bg">
+  <div class="login-box">
+    <div class="logo-area">
+      <% if (hasLogo) { %>
+        <img src="/logos/logo.png" alt="VS TEAM">
+      <% } else { %>
+        <div class="fallback">VS TEAM</div>
+        <div class="sub">CONSULTORIA ONLINE</div>
+      <% } %>
+    </div>
+    <%- include('../partials/flash') %>
+    <form action="/login" method="POST">
+      <div class="form-row">
+        <label>Email</label>
+        <input type="email" name="email" required autofocus>
+      </div>
+      <div class="form-row">
+        <label>Senha</label>
+        <input type="password" name="password" required>
+      </div>
+      <button class="btn btn-block" type="submit">ENTRAR</button>
+    </form>
+    <p class="text-muted text-center mt-3 fs-sm">
+      Sem acesso? Fala com o Victor no Instagram.
+    </p>
+  </div>
+</div>
+<%- include('../partials/foot') %>

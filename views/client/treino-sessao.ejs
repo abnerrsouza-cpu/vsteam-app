@@ -1,0 +1,243 @@
+<%- include('../partials/head') %>
+<% const totalEx = exercises.length; %>
+<div class="ws-app <%= !allowScreenshot ? 'ws-watermark' : '' %>">
+  <header class="ws-header">
+    <a href="/cliente/treinos" class="ws-back">←</a>
+    <div class="ws-progress-info">
+      <div class="ws-prog-label">Exercício <%= idx + 1 %> de <%= totalEx %></div>
+      <div class="ws-prog-bar"><div class="ws-prog-fill" style="width:<%= ((idx+1)/totalEx)*100 %>%"></div></div>
+    </div>
+    <div class="ws-timer-total">
+      <small>TOTAL</small>
+      <span id="totalTimer" data-started="<%= session.started_at %>">--:--</span>
+    </div>
+  </header>
+
+  <main class="ws-main">
+    <h1 class="ws-ex-name"><%= exercise.name %></h1>
+
+    <div class="ws-info">
+      <div class="ws-info-row">
+        <span class="ws-bullet" style="background:var(--accent)"></span>
+        <strong>Séries: <%= exercise.sets || '—' %></strong>
+      </div>
+      <div class="ws-info-row">
+        <span class="ws-bullet" style="background:var(--success)"></span>
+        <strong>Reps: <%= exercise.reps || '—' %></strong>
+      </div>
+      <% if (exercise.rest) { %>
+        <div class="ws-info-row">
+          <span class="ws-bullet" style="background:var(--info)"></span>
+          <strong>Descanso: <%= exercise.rest %></strong>
+        </div>
+      <% } %>
+    </div>
+
+    <% const numSets = parseInt(exercise.sets) || 1; %>
+    <div class="ws-set-tabs">
+      <% for (let n = 1; n <= numSets; n++) {
+        const recorded = sets.find(s => s.set_number === n);
+      %>
+        <button class="ws-set-tab <%= n === 1 ? 'active' : '' %> <%= recorded ? 'done' : '' %>" data-set="<%= n %>">
+          <span class="ws-set-dot"></span>
+          <%= n %>ª série
+        </button>
+      <% } %>
+    </div>
+
+    <form id="setForm" class="ws-set-form">
+      <input type="hidden" name="exercise_id" value="<%= exercise.id %>">
+      <input type="hidden" name="set_number" id="setNumber" value="1">
+      <div class="ws-input-row">
+        <div class="ws-input-card">
+          <div class="ws-input-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M6.5 6.5l11 11"/><path d="m21 21-1-1"/><path d="m3 3 1 1"/><path d="m18 22 4-4"/><path d="m2 6 4-4"/><path d="m3 10 7-7"/><path d="m14 21 7-7"/></svg>
+          </div>
+          <div class="ws-input-body">
+            <label>Peso (kg)</label>
+            <input type="number" step="0.5" name="weight" id="setWeight" placeholder="<%= exercise.load_kg || '—' %>">
+          </div>
+        </div>
+        <div class="ws-input-card">
+          <div class="ws-input-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          </div>
+          <div class="ws-input-body">
+            <label>Reps feitas</label>
+            <input type="number" name="reps" id="setReps" placeholder="<%= exercise.reps || '—' %>">
+          </div>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-block">Salvar série</button>
+    </form>
+
+    <% if (exercise.video_url) { %>
+      <button class="ws-video-btn" id="openVideo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Ver vídeo do exercício
+      </button>
+    <% } %>
+
+    <% if (exercise.notes) { %>
+      <div class="ws-notes">
+        <strong>Observação do treinador:</strong>
+        <p><%= exercise.notes %></p>
+      </div>
+    <% } %>
+
+    <div class="ws-rest-section">
+      <h3>Cronômetro de descanso</h3>
+      <div class="ws-rest-display" id="restDisplay">00:00</div>
+      <div class="ws-rest-controls">
+        <button class="btn btn-outline" id="restStart">Iniciar</button>
+        <button class="btn btn-ghost" id="restReset">Zerar</button>
+      </div>
+    </div>
+  </main>
+
+  <nav class="ws-nav">
+    <% if (idx > 0) { %>
+      <a href="/cliente/treino/sessao/<%= session.id %>/exercicio/<%= idx - 1 %>" class="ws-nav-btn">‹ Anterior</a>
+    <% } else { %>
+      <span></span>
+    <% } %>
+
+    <% if (idx < totalEx - 1) { %>
+      <a href="/cliente/treino/sessao/<%= session.id %>/exercicio/<%= idx + 1 %>" class="ws-nav-btn primary">Próximo ›</a>
+    <% } else { %>
+      <button class="ws-nav-btn primary" id="finishBtn">Finalizar treino</button>
+    <% } %>
+  </nav>
+
+  <button class="ws-cancel" id="cancelBtn">Cancelar treino</button>
+</div>
+
+<!-- Modal vídeo -->
+<% if (exercise.video_url) { %>
+<div id="videoModal" class="ws-modal" style="display:none">
+  <div class="ws-modal-box">
+    <button class="ws-modal-close" id="closeVideo">×</button>
+    <div class="ws-video-wrap">
+      <iframe src="<%= exercise.video_url %>" allowfullscreen></iframe>
+    </div>
+    <p class="text-center fs-sm text-muted mt-2"><%= exercise.name %></p>
+  </div>
+</div>
+<% } %>
+
+<!-- Modal finalizar -->
+<div id="finishModal" class="ws-modal" style="display:none">
+  <div class="ws-modal-box ws-modal-confirm">
+    <h2>Finalizar treino?</h2>
+    <p class="text-muted">Tem certeza que quer encerrar o treino atual?</p>
+    <div class="flex-gap gap-1">
+      <button class="btn btn-ghost" id="finishCancel">Cancelar</button>
+      <form action="/cliente/treino/sessao/<%= session.id %>/finalizar" method="POST" style="margin:0;flex:1">
+        <button class="btn btn-block" type="submit">Confirmar</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal cancelar -->
+<div id="cancelModal" class="ws-modal" style="display:none">
+  <div class="ws-modal-box ws-modal-confirm">
+    <h2>Cancelar treino?</h2>
+    <p class="text-muted">Sua sessão atual será descartada. Você pode iniciar de novo depois.</p>
+    <div class="flex-gap gap-1">
+      <button class="btn btn-ghost" id="cancelKeep">Voltar</button>
+      <form action="/cliente/treino/sessao/<%= session.id %>/cancelar" method="POST" style="margin:0;flex:1">
+        <button class="btn btn-block" style="background:var(--danger)" type="submit">Cancelar treino</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // Total timer
+  const totalEl = document.getElementById('totalTimer');
+  const startedAt = new Date(totalEl.dataset.started + (totalEl.dataset.started.includes('Z') ? '' : 'Z')).getTime() || new Date(totalEl.dataset.started.replace(' ', 'T') + 'Z').getTime();
+  function fmt(s){ const m = Math.floor(s/60); const r = s%60; return String(m).padStart(2,'0') + ':' + String(r).padStart(2,'0'); }
+  function tick(){
+    const s = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
+    totalEl.textContent = fmt(s);
+  }
+  tick(); setInterval(tick, 1000);
+
+  // Tabs de série + carregar valores existentes
+  const setData = <%- JSON.stringify(sets) %>;
+  const tabs = document.querySelectorAll('.ws-set-tab');
+  const setNum = document.getElementById('setNumber');
+  const wInput = document.getElementById('setWeight');
+  const rInput = document.getElementById('setReps');
+  function loadSet(n){
+    setNum.value = n;
+    const found = setData.find(s => s.set_number == n);
+    wInput.value = found && found.weight != null ? found.weight : '';
+    rInput.value = found && found.reps != null ? found.reps : '';
+  }
+  tabs.forEach(t => t.addEventListener('click', e => {
+    e.preventDefault();
+    tabs.forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    loadSet(parseInt(t.dataset.set));
+  }));
+  loadSet(1);
+
+  // Submit série via fetch
+  document.getElementById('setForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const body = new URLSearchParams(fd);
+    const r = await fetch('/cliente/treino/sessao/<%= session.id %>/serie', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body, credentials: 'same-origin'
+    });
+    if (r.ok) {
+      const activeTab = document.querySelector('.ws-set-tab.active');
+      activeTab.classList.add('done');
+      const idx = parseInt(activeTab.dataset.set);
+      const next = document.querySelector('.ws-set-tab[data-set="' + (idx + 1) + '"]');
+      if (next) next.click();
+      else activeTab.querySelector('.ws-set-dot').style.background = 'var(--success)';
+    }
+  });
+
+  // Cronômetro de descanso
+  let restSec = 0, restRunning = false, restInterval = null;
+  const restEl = document.getElementById('restDisplay');
+  document.getElementById('restStart').addEventListener('click', e => {
+    e.preventDefault();
+    if (restRunning) { clearInterval(restInterval); restRunning = false; e.target.textContent = 'Continuar'; }
+    else { restRunning = true; e.target.textContent = 'Pausar'; restInterval = setInterval(() => { restSec++; restEl.textContent = fmt(restSec); }, 1000); }
+  });
+  document.getElementById('restReset').addEventListener('click', e => {
+    e.preventDefault();
+    clearInterval(restInterval); restSec = 0; restRunning = false;
+    restEl.textContent = '00:00'; document.getElementById('restStart').textContent = 'Iniciar';
+  });
+
+  // Modal vídeo
+  const vid = document.getElementById('videoModal');
+  const openV = document.getElementById('openVideo');
+  if (openV && vid) {
+    openV.addEventListener('click', e => { e.preventDefault(); vid.style.display = 'flex'; });
+    document.getElementById('closeVideo').addEventListener('click', () => vid.style.display = 'none');
+  }
+
+  // Modal finalizar
+  const finBtn = document.getElementById('finishBtn');
+  const finMod = document.getElementById('finishModal');
+  if (finBtn) finBtn.addEventListener('click', () => finMod.style.display = 'flex');
+  document.getElementById('finishCancel').addEventListener('click', () => finMod.style.display = 'none');
+
+  // Modal cancelar
+  const canBtn = document.getElementById('cancelBtn');
+  const canMod = document.getElementById('cancelModal');
+  canBtn.addEventListener('click', () => canMod.style.display = 'flex');
+  document.getElementById('cancelKeep').addEventListener('click', () => canMod.style.display = 'none');
+})();
+</script>
+<%- include('../partials/foot') %>

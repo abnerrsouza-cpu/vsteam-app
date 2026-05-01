@@ -1,0 +1,97 @@
+<%- include('../partials/head') %>
+<div class="app">
+  <%- include('../partials/sidebar-admin') %>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1>Central de Lembretes</h1>
+        <p class="text-muted mb-0">Fila de mensagens para disparar no Whatsapp/Instagram. Copie o texto e cole na conversa.</p>
+      </div>
+      <form action="/admin/lembretes/disparo-semanal" method="POST" data-confirm="Criar lembretes de quarta para TODOS os ativos?" style="margin:0">
+        <button class="btn" type="submit">🔥 Disparo de Quarta</button>
+      </form>
+    </div>
+    <%- include('../partials/flash') %>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <h3>+ Agendar Lembrete</h3>
+        <form action="/admin/lembretes" method="POST">
+          <div class="form-row">
+            <label>Cliente</label>
+            <select name="client_id">
+              <option value="">— geral (sem cliente) —</option>
+              <% clientes.forEach(function(c){ %>
+                <option value="<%= c.id %>"><%= c.name %></option>
+              <% }); %>
+            </select>
+          </div>
+          <div class="form-grid">
+            <div class="form-row">
+              <label>Tipo</label>
+              <select name="type" required>
+                <option value="fotos_semanais">Fotos semanais (quarta)</option>
+                <option value="ficha">Ficha de avaliação</option>
+                <option value="questionario">Questionário inicial</option>
+                <option value="follow_up">Follow-up</option>
+                <option value="cobranca">Cobrança</option>
+                <option value="outro">Outro</option>
+              </select>
+            </div>
+            <div class="form-row"><label>Data</label><input type="date" name="scheduled_for" value="<%= new Date().toISOString().slice(0,10) %>" required></div>
+          </div>
+          <div class="form-row">
+            <label>Mensagem (texto para copiar)</label>
+            <textarea name="message" rows="5" required placeholder="Oi [nome]! Lembrete VS TEAM..."></textarea>
+          </div>
+          <button class="btn" type="submit">Agendar</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>🔴 Pendentes (<%= pendentes.length %>)</h3>
+        <% if (pendentes.length === 0) { %>
+          <p class="text-muted">Nenhum lembrete pendente. 👌</p>
+        <% } %>
+        <% pendentes.forEach(function(r){ %>
+          <div style="padding:12px;background:var(--bg-soft);border-radius:8px;margin-bottom:10px;border-left:3px solid var(--warning)">
+            <div class="flex-between">
+              <div>
+                <strong><%= r.client_name || 'Geral' %></strong>
+                <span class="badge badge-outline"><%= r.type %></span>
+                <div class="fs-sm text-muted"><%= r.scheduled_for %> <%= r.phone ? '· ' + r.phone : '' %></div>
+              </div>
+              <div class="flex-gap gap-1">
+                <button class="btn btn-sm btn-outline" onclick="navigator.clipboard.writeText(`<%= (r.message || '').replace(/`/g,'\\`').replace(/\n/g,'\\n') %>`);this.textContent='✓ copiado'">Copiar texto</button>
+                <form action="/admin/lembretes/<%= r.id %>/enviar" method="POST" style="margin:0">
+                  <button class="btn btn-sm btn-success" type="submit">✓ Enviado</button>
+                </form>
+                <form action="/admin/lembretes/<%= r.id %>/delete" method="POST" style="margin:0" data-confirm="Apagar?">
+                  <button class="btn btn-sm btn-ghost" type="submit">×</button>
+                </form>
+              </div>
+            </div>
+            <p class="fs-sm mt-1" style="white-space:pre-wrap"><%= r.message %></p>
+          </div>
+        <% }); %>
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <h3>✅ Histórico recente</h3>
+      <% if (enviados.length === 0) { %>
+        <p class="text-muted fs-sm">Sem enviados ainda.</p>
+      <% } %>
+      <% enviados.forEach(function(r){ %>
+        <div style="padding:8px 0;border-bottom:1px solid var(--border)" class="flex-between">
+          <div>
+            <strong class="fs-sm"><%= r.client_name || 'Geral' %></strong>
+            <span class="fs-sm text-muted"> · <%= r.type %></span>
+          </div>
+          <span class="fs-sm text-muted"><%= (r.sent_at || r.scheduled_for || '').slice(0,10) %></span>
+        </div>
+      <% }); %>
+    </div>
+  </main>
+</div>
+<%- include('../partials/foot') %>

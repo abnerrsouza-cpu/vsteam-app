@@ -1,0 +1,98 @@
+<%- include('../partials/head') %>
+<div class="app">
+  <%- include('../partials/sidebar-admin') %>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <a href="/admin/templates-treino" class="text-muted fs-sm">← Templates</a>
+        <h1><%= tpl.name %></h1>
+        <p class="text-muted mb-0"><%= tpl.focus || '' %><% if (tpl.day_label) { %> · Treino <%= tpl.day_label %><% } %></p>
+      </div>
+      <form action="/admin/templates-treino/<%= tpl.id %>/delete" method="POST" data-confirm="Apagar este template? Os treinos já aplicados em clientes não são afetados." style="margin:0">
+        <button class="btn btn-ghost" type="submit">Apagar template</button>
+      </form>
+    </div>
+    <%- include('../partials/flash') %>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <h3>Editar template</h3>
+        <form action="/admin/templates-treino/<%= tpl.id %>/update" method="POST">
+          <div class="form-row"><label>Nome *</label><input type="text" name="name" value="<%= tpl.name %>" required></div>
+          <div class="form-row"><label>Descrição</label><textarea name="description" rows="2"><%= tpl.description || '' %></textarea></div>
+          <div class="form-grid">
+            <div class="form-row">
+              <label>Foco</label>
+              <select name="focus">
+                <% ['Hipertrofia','Força','Resistência','Definição','Funcional'].forEach(function(f){ %>
+                  <option <%= tpl.focus === f ? 'selected' : '' %>><%= f %></option>
+                <% }); %>
+              </select>
+            </div>
+            <div class="form-row"><label>Letra</label><input type="text" name="day_label" value="<%= tpl.day_label || '' %>" maxlength="4"></div>
+          </div>
+          <div class="form-row"><label>Notas</label><textarea name="notes" rows="2"><%= tpl.notes || '' %></textarea></div>
+          <button class="btn btn-sm" type="submit">Salvar</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>Adicionar exercício</h3>
+        <form action="/admin/templates-treino/<%= tpl.id %>/exercicios" method="POST">
+          <div class="form-row">
+            <label>Da biblioteca</label>
+            <select name="library_id" onchange="if(this.value){const opt=this.options[this.selectedIndex];document.getElementsByName('name')[0].value=opt.dataset.name||''}">
+              <option value="">— ou cadastrar manual abaixo —</option>
+              <% lib.forEach(function(e){ %>
+                <option value="<%= e.id %>" data-name="<%= e.name %>"><%= e.muscle_group %> · <%= e.name %></option>
+              <% }); %>
+            </select>
+          </div>
+          <div class="form-row"><label>Nome *</label><input type="text" name="name" required></div>
+          <div class="form-grid">
+            <div class="form-row"><label>Séries</label><input type="text" name="sets" placeholder="4"></div>
+            <div class="form-row"><label>Reps</label><input type="text" name="reps" placeholder="8-10"></div>
+          </div>
+          <div class="form-grid">
+            <div class="form-row"><label>Descanso</label><input type="text" name="rest" placeholder="90s"></div>
+            <div class="form-row"><label>Carga sugerida (kg)</label><input type="text" name="load_kg"></div>
+          </div>
+          <div class="form-row"><label>Vídeo (URL embed)</label><input type="text" name="video_url" placeholder="https://www.youtube.com/embed/..."></div>
+          <div class="form-row"><label>Observação</label><textarea name="notes" rows="2"></textarea></div>
+          <button class="btn btn-sm" type="submit">Adicionar</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <h3>Exercícios do template (<%= exs.length %>)</h3>
+      <% if (exs.length === 0) { %>
+        <p class="text-muted">Nenhum exercício ainda. Adicione ao lado.</p>
+      <% } else { %>
+        <table class="table">
+          <thead><tr><th>#</th><th>Exercício</th><th>Séries × Reps</th><th>Descanso</th><th>Carga</th><th></th></tr></thead>
+          <tbody>
+            <% exs.forEach(function(e, i){ %>
+              <tr>
+                <td><%= i + 1 %></td>
+                <td>
+                  <strong><%= e.name %></strong>
+                  <% if (e.notes) { %><div class="fs-sm text-muted"><%= e.notes %></div><% } %>
+                </td>
+                <td><%= e.sets %> × <%= e.reps %></td>
+                <td><%= e.rest %></td>
+                <td><%= e.load_kg ? e.load_kg + ' kg' : '—' %></td>
+                <td>
+                  <form action="/admin/templates-treino/exercicios/<%= e.id %>/delete" method="POST" style="margin:0">
+                    <button class="btn btn-sm btn-ghost" type="submit">×</button>
+                  </form>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      <% } %>
+    </div>
+  </main>
+</div>
+<%- include('../partials/foot') %>

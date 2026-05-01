@@ -1,0 +1,155 @@
+<%- include('../partials/head') %>
+<style>
+  .inv-bg { min-height: 100vh; background: radial-gradient(circle at 20% 20%, #2a0000 0%, #0a0a0a 60%); padding: 30px 18px; }
+  .inv-wrap { max-width: 640px; margin: 0 auto; }
+  .inv-hero { text-align: center; margin-bottom: 24px; }
+  .inv-hero .logo { max-width: 200px; }
+  .inv-hero .fallback { font-weight: 900; font-size: 36px; letter-spacing: 4px; color: var(--primary); }
+  .inv-hero .sub { color: var(--text-muted); font-size: 11px; letter-spacing: 5px; margin-top: 4px; }
+  .inv-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 28px; margin-bottom: 18px; }
+  .inv-section h2 { font-size: 18px; margin-bottom: 14px; }
+  .inv-plan-card { background: var(--bg-soft); border-left: 3px solid var(--primary); border-radius: 8px; padding: 14px 18px; margin-bottom: 18px; }
+</style>
+
+<div class="inv-bg">
+  <div class="inv-wrap">
+    <div class="inv-hero">
+      <% if (hasLogo) { %>
+        <img class="logo" src="/logos/logo.png" alt="VS TEAM">
+      <% } else { %>
+        <div class="fallback">VS TEAM</div>
+        <div class="sub">CONSULTORIA ONLINE</div>
+      <% } %>
+      <h1 style="margin-top:14px">Bem-vindo!</h1>
+      <p class="text-muted">
+        Você foi convidado pelo Victor para iniciar sua transformação.
+        <% if (invite.label) { %>
+          <br><span class="fs-sm">Convite: <strong><%= invite.label %></strong></span>
+        <% } %>
+      </p>
+    </div>
+
+    <%- include('../partials/flash') %>
+
+    <% if (invite.plan) { %>
+      <div class="inv-plan-card">
+        <div class="fs-sm text-muted" style="letter-spacing:1.5px">SEU PLANO</div>
+        <strong style="font-size:18px"><%= invite.plan %></strong>
+        <% if (invite.plan_duration) { %> · <%= invite.plan_duration %><% } %>
+        <% if (invite.plan_value) { %>
+          <div class="fs-sm">R$ <%= Number(invite.plan_value).toFixed(2).replace('.', ',') %></div>
+        <% } %>
+      </div>
+    <% } %>
+
+    <form action="/convite/<%= invite.token %>" method="POST" enctype="multipart/form-data">
+      <div class="inv-card inv-section">
+        <h2>1. Crie seu acesso</h2>
+        <div class="form-row">
+          <label>Nome completo *</label>
+          <input type="text" name="name" required>
+        </div>
+        <div class="form-grid">
+          <div class="form-row">
+            <label>Email *</label>
+            <input type="email" name="email" required>
+          </div>
+          <div class="form-row">
+            <label>Senha *</label>
+            <input type="password" name="password" required minlength="6">
+            <small class="text-muted fs-sm">Mínimo 6 caracteres.</small>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-row">
+            <label>Whatsapp</label>
+            <input type="tel" name="phone" placeholder="+55 11 9...">
+          </div>
+          <div class="form-row">
+            <label>Instagram</label>
+            <input type="text" name="instagram" placeholder="@usuario">
+          </div>
+        </div>
+      </div>
+
+      <% if (invite.request_anamnese && template.length > 0) { %>
+        <div class="inv-card inv-section">
+          <h2>2. Questionário inicial (anamnese)</h2>
+          <p class="fs-sm text-muted">Essas informações são a base pra montar seu treino e dieta personalizados.</p>
+          <% template.forEach(function(q){
+            let opts = [];
+            if (q.field_type === 'select' && q.options) { try { opts = JSON.parse(q.options) || []; } catch(_) {} }
+          %>
+            <div class="form-row">
+              <label><%= q.label %><% if (q.required) { %> <span class="text-primary">*</span><% } %></label>
+              <% if (q.field_type === 'text') { %>
+                <input type="text" name="<%= q.q_key %>" <%= q.required ? 'required' : '' %>>
+              <% } else if (q.field_type === 'number') { %>
+                <input type="number" step="0.1" name="<%= q.q_key %>" <%= q.required ? 'required' : '' %>>
+              <% } else if (q.field_type === 'select') { %>
+                <select name="<%= q.q_key %>" <%= q.required ? 'required' : '' %>>
+                  <option value="">— selecione —</option>
+                  <% opts.forEach(function(o){ %><option value="<%= o %>"><%= o %></option><% }); %>
+                </select>
+              <% } else { %>
+                <textarea name="<%= q.q_key %>" rows="3" <%= q.required ? 'required' : '' %>></textarea>
+              <% } %>
+            </div>
+          <% }); %>
+        </div>
+      <% } %>
+
+      <% if (invite.request_photos) { %>
+        <div class="inv-card inv-section">
+          <h2><%= invite.request_anamnese ? '3' : '2' %>. Fotos iniciais</h2>
+          <p class="fs-sm text-muted">Tire fotos de frente, costas e laterais. São o ponto de partida da sua evolução. Você pode enviar até 4 imagens (jpg/png, máx 10MB cada).</p>
+          <div class="upload-zone">
+            <label class="upload-drop" id="invDrop">
+              <input type="file" name="photos" id="invInput" accept="image/*" multiple style="display:none">
+              <div class="upload-cta">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="28" height="28">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/>
+                  <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                <div>
+                  <strong>Clique para selecionar</strong>
+                  <div class="fs-sm text-muted">ou arraste suas fotos aqui</div>
+                </div>
+              </div>
+            </label>
+            <div class="upload-preview" id="invPreview"></div>
+          </div>
+        </div>
+      <% } %>
+
+      <button class="btn btn-block" type="submit" style="font-size:16px;padding:14px">Confirmar e entrar na VS TEAM</button>
+      <p class="text-muted text-center mt-2 fs-sm">Ao confirmar, você concorda em iniciar sua jornada e participar do programa de consultoria online.</p>
+    </form>
+  </div>
+</div>
+
+<script>
+(function(){
+  const inp = document.getElementById('invInput');
+  const drop = document.getElementById('invDrop');
+  const prev = document.getElementById('invPreview');
+  if (!inp || !drop) return;
+  function render(files) {
+    prev.innerHTML = '';
+    Array.from(files).slice(0, 4).forEach(f => {
+      if (!f.type.startsWith('image/')) return;
+      const url = URL.createObjectURL(f);
+      const div = document.createElement('div');
+      div.className = 'upload-thumb';
+      div.innerHTML = '<img src="'+url+'"><span>'+f.name+'</span>';
+      prev.appendChild(div);
+    });
+  }
+  inp.addEventListener('change', () => render(inp.files));
+  ['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('drag'); }));
+  ['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('drag'); }));
+  drop.addEventListener('drop', e => { if (e.dataTransfer.files.length) { inp.files = e.dataTransfer.files; render(inp.files); } });
+})();
+</script>
+<%- include('../partials/foot') %>

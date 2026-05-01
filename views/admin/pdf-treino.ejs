@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title><%= title %></title>
+  <style>
+    @page { size: A4; margin: 16mm 14mm; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      background: #fff; color: #111;
+      margin: 0; padding: 24px;
+      font-size: 13px; line-height: 1.5;
+    }
+    .pdf-bar {
+      position: sticky; top: 0;
+      background: #fff; padding: 12px 16px; margin: -24px -24px 18px;
+      border-bottom: 1px solid #ddd;
+      display: flex; gap: 10px; justify-content: flex-end;
+      z-index: 10;
+    }
+    .pdf-bar button, .pdf-bar a {
+      padding: 8px 16px;
+      background: #e50914; color: #fff;
+      border: 0; border-radius: 6px;
+      font-weight: 700; font-size: 13px;
+      cursor: pointer; text-decoration: none;
+    }
+    .pdf-bar a.ghost { background: #eee; color: #333; }
+    @media print { .pdf-bar { display: none; } body { padding: 0; } }
+
+    .doc { max-width: 760px; margin: 0 auto; }
+    .doc-header {
+      border-top: 4px solid #e50914;
+      padding: 18px 0 14px;
+      margin-bottom: 18px;
+      display: flex; justify-content: space-between; align-items: flex-end;
+    }
+    .doc-header .brand {
+      font-weight: 900; font-size: 24px; letter-spacing: 3px; color: #111;
+    }
+    .doc-header .brand .red { color: #e50914; }
+    .doc-header .brand-sub {
+      font-size: 9px; letter-spacing: 4px; color: #888; margin-top: 2px;
+    }
+    .doc-header img.logo { max-height: 60px; }
+    .doc-meta { font-size: 11px; color: #555; text-align: right; }
+    .doc-meta strong { color: #111; font-size: 13px; }
+
+    .client-card {
+      background: #f7f7f7; border-radius: 8px;
+      padding: 14px 16px; margin-bottom: 18px;
+    }
+    .client-card .name { font-size: 18px; font-weight: 800; margin-bottom: 2px; }
+    .client-card .meta { font-size: 11px; color: #666; }
+
+    .workout {
+      border: 1px solid #ddd; border-radius: 8px;
+      padding: 16px; margin-bottom: 16px;
+      page-break-inside: avoid;
+    }
+    .workout-title {
+      display: flex; justify-content: space-between; align-items: baseline;
+      border-bottom: 2px solid #e50914;
+      padding-bottom: 8px; margin-bottom: 12px;
+    }
+    .workout-title h2 { margin: 0; font-size: 17px; font-weight: 900; letter-spacing: 0.5px; }
+    .workout-title .day {
+      background: #e50914; color: #fff;
+      padding: 4px 14px; border-radius: 14px;
+      font-size: 12px; font-weight: 800; letter-spacing: 1px;
+    }
+    .workout-meta { font-size: 11px; color: #666; margin-bottom: 12px; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th { text-align: left; padding: 8px 6px; border-bottom: 2px solid #111; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: #555; }
+    td { padding: 9px 6px; border-bottom: 1px solid #eee; vertical-align: top; }
+    td.ex-name { font-weight: 700; }
+    td.ex-notes { font-size: 10px; color: #777; padding-top: 0; padding-bottom: 8px; }
+
+    .footer {
+      margin-top: 30px; padding-top: 14px; border-top: 1px solid #ddd;
+      font-size: 10px; color: #888;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .signature {
+      margin-top: 50px; padding-top: 6px;
+      border-top: 1px solid #111;
+      width: 300px; font-size: 10px; color: #555; text-align: center;
+    }
+
+    .empty {
+      padding: 40px; text-align: center; color: #999;
+      border: 2px dashed #ddd; border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="pdf-bar">
+    <a href="/admin/clientes/<%= cliente.id %>" class="ghost">← Voltar</a>
+    <button onclick="window.print()">Imprimir / Salvar como PDF</button>
+  </div>
+
+  <div class="doc">
+    <div class="doc-header">
+      <div>
+        <% if (hasLogo) { %>
+          <img class="logo" src="/logos/logo.png" alt="VS TEAM">
+        <% } else { %>
+          <div class="brand">VS<span class="red">TEAM</span></div>
+          <div class="brand-sub">CONSULTORIA ONLINE</div>
+        <% } %>
+      </div>
+      <div class="doc-meta">
+        <strong>FICHA DE TREINO</strong>
+        <div>Semana <%= week %></div>
+        <div>Gerado em <%= geradoEm %></div>
+      </div>
+    </div>
+
+    <div class="client-card">
+      <div class="name"><%= cliente.name %></div>
+      <div class="meta">
+        <%= cliente.plan || 'Consultoria VS TEAM' %>
+        <% if (cliente.email) { %> · <%= cliente.email %><% } %>
+        <% if (cliente.phone) { %> · <%= cliente.phone %><% } %>
+      </div>
+    </div>
+
+    <% if (workouts.length === 0) { %>
+      <div class="empty">Nenhum treino cadastrado para a semana <%= week %>.</div>
+    <% } %>
+
+    <% workouts.forEach(function(w){ %>
+      <div class="workout">
+        <div class="workout-title">
+          <h2><%= w.title %></h2>
+          <span class="day">Treino <%= w.day_label %></span>
+        </div>
+        <% if (w.focus || w.notes) { %>
+          <div class="workout-meta">
+            <% if (w.focus) { %><strong>Foco:</strong> <%= w.focus %><% } %>
+            <% if (w.notes) { %> · <%= w.notes %><% } %>
+          </div>
+        <% } %>
+
+        <% if (w.exercises.length === 0) { %>
+          <p style="color:#999;font-size:11px">Sem exercícios cadastrados.</p>
+        <% } else { %>
+          <table>
+            <thead>
+              <tr>
+                <th style="width:30px">#</th>
+                <th>Exercício</th>
+                <th style="width:90px">Séries × Reps</th>
+                <th style="width:70px">Descanso</th>
+                <th style="width:70px">Carga</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% w.exercises.forEach(function(e, i){ %>
+                <tr>
+                  <td><%= i + 1 %></td>
+                  <td class="ex-name"><%= e.name %></td>
+                  <td><%= e.sets || '—' %> × <%= e.reps || '—' %></td>
+                  <td><%= e.rest || '—' %></td>
+                  <td><%= e.load_kg ? e.load_kg + ' kg' : '—' %></td>
+                </tr>
+                <% if (e.notes) { %>
+                  <tr><td></td><td colspan="4" class="ex-notes"><%= e.notes %></td></tr>
+                <% } %>
+              <% }); %>
+            </tbody>
+          </table>
+        <% } %>
+      </div>
+    <% }); %>
+
+    <div class="signature">Victor Augusto — VS TEAM</div>
+
+    <div class="footer">
+      <div>VS TEAM Consultoria Online · Documento gerado automaticamente</div>
+      <div><%= geradoEm %></div>
+    </div>
+  </div>
+</body>
+</html>

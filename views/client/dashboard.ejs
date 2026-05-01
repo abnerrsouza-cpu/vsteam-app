@@ -1,0 +1,199 @@
+<%- include('../partials/head') %>
+<div class="app">
+  <%- include('../partials/sidebar-client') %>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1>Fala, <%= cliente.name.split(' ')[0] %></h1>
+        <p class="text-muted mb-0">Você tá na <strong>semana <%= cliente.current_week %></strong> do programa <strong><%= cliente.plan || '—' %></strong>.</p>
+      </div>
+    </div>
+    <%- include('../partials/flash') %>
+
+    <% if (locals.activeSession) { %>
+      <div class="card" style="border-color:var(--primary);background:linear-gradient(135deg, rgba(229,9,20,0.18), var(--bg-card))">
+        <div class="flex-between mb-2">
+          <div>
+            <div class="fs-sm text-muted" style="letter-spacing:2px">TREINO EM ANDAMENTO</div>
+            <h3 style="margin:0">Treino <%= (locals.activeSession ? locals.activeSession.day_label : "") %> — <%= (locals.activeSession ? locals.activeSession.title : "") %></h3>
+          </div>
+          <div class="flex-gap gap-1">
+            <a href="/cliente/treino/sessao/<%= (locals.activeSession ? locals.activeSession.id : 0) %>/exercicio/0" class="btn">Continuar treino</a>
+            <form action="/cliente/treino/sessao/<%= (locals.activeSession ? locals.activeSession.id : 0) %>/cancelar" method="POST" data-confirm="Cancelar o treino atual?" style="margin:0">
+              <button class="btn btn-ghost" type="submit">Cancelar</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    <% } %>
+
+    <% if (!locals.hasQuestionnaire) { %>
+      <div class="card" style="border-left:3px solid var(--accent)">
+        <h3>Primeiro passo</h3>
+        <p class="text-muted mb-2">Para o Victor montar seu treino e dieta, ele precisa entender seu histórico, rotina e objetivos. Preencha o questionário inicial agora.</p>
+        <a href="/cliente/questionario" class="btn">Preencher questionário</a>
+      </div>
+    <% } %>
+
+    <div class="kpi-row mb-3">
+      <div class="stat accent">
+        <div class="label">Semana</div>
+        <div class="value"><%= cliente.current_week %></div>
+        <div class="extra">do seu programa</div>
+      </div>
+      <div class="stat success">
+        <div class="label">Pontos Gym Cats</div>
+        <div class="value"><%= cliente.gym_cats_points %></div>
+        <div class="extra">#<%= (locals.position || 0) %> de <%= (locals.totalClients || 0) %></div>
+      </div>
+      <div class="stat info">
+        <div class="label">Fotos Enviadas</div>
+        <div class="value"><%= (locals.photosCount || 0) %></div>
+      </div>
+      <div class="stat">
+        <div class="label">Avaliações</div>
+        <div class="value"><%= (locals.evals || []).length %></div>
+      </div>
+    </div>
+
+    <% if (locals.firstEval && locals.lastEval && locals.firstEval.weight && locals.lastEval.weight && locals.firstEval.id !== locals.lastEval.id) {
+      const diff = (locals.lastEval.weight - locals.firstEval.weight).toFixed(1);
+      const sinal = diff > 0 ? '+' : '';
+      const cintDiff = (locals.firstEval.waist && locals.lastEval.waist) ? (locals.lastEval.waist - locals.firstEval.waist).toFixed(1) : null;
+    %>
+      <div class="card">
+        <h3>Sua evolução</h3>
+        <div class="grid grid-3 mt-2">
+          <div class="text-center">
+            <div class="fs-sm text-muted">PESO</div>
+            <div style="font-size:28px;font-weight:800"><%= sinal %><%= diff %> kg</div>
+          </div>
+          <% if (cintDiff !== null) { %>
+          <div class="text-center">
+            <div class="fs-sm text-muted">CINTURA</div>
+            <div style="font-size:28px;font-weight:800"><%= cintDiff > 0 ? '+' : '' %><%= cintDiff %> cm</div>
+          </div>
+          <% } %>
+          <div class="text-center">
+            <div class="fs-sm text-muted">SEMANAS</div>
+            <div style="font-size:28px;font-weight:800"><%= locals.lastEval.week_number - locals.firstEval.week_number + 1 %></div>
+          </div>
+        </div>
+      </div>
+    <% } %>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <div class="flex-between mb-2">
+          <h3>Treinos desta semana</h3>
+          <a href="/cliente/treinos" class="btn btn-sm btn-outline">Ver todos →</a>
+        </div>
+        <% if ((locals.workouts || []).length === 0) { %>
+          <p class="text-muted">Seu treino da semana ainda não foi postado. Fica tranquilo que tá vindo!</p>
+        <% } else { %>
+          <% (locals.workouts || []).forEach(function(w){ %>
+            <a href="/cliente/treino/<%= w.id %>/iniciar" style="display:block;padding:14px;background:var(--bg-soft);border-radius:8px;margin-bottom:8px;color:var(--text);text-decoration:none;border:1px solid var(--border);transition:all 0.15s" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
+              <div class="flex-between">
+                <div>
+                  <strong>Treino <%= w.day_label %>: <%= w.title %></strong>
+                  <div class="fs-sm text-muted"><%= w.focus || '' %></div>
+                </div>
+                <span class="text-primary fs-sm fw-bold">Iniciar →</span>
+              </div>
+            </a>
+          <% }); %>
+        <% } %>
+      </div>
+
+      <div class="card">
+        <h3>Último feedback</h3>
+        <% if (locals.lastFeedback) { %>
+          <p class="fs-sm text-muted">Semana <%= locals.lastFeedback.week_number %> · <%= locals.lastFeedback.sent_at.slice(0,10) %></p>
+          <p class="fs-sm"><strong>Análise:</strong> <%= locals.lastFeedback.analysis %></p>
+          <% if (locals.lastFeedback.next_steps) { %>
+            <p class="fs-sm"><strong>Próximos passos:</strong> <%= locals.lastFeedback.next_steps %></p>
+          <% } %>
+        <% } else { %>
+          <p class="text-muted">Você ainda não recebeu feedback. Isso acontece após o primeiro ciclo completo.</p>
+        <% } %>
+      </div>
+    </div>
+  </main>
+</div>
+
+<% if (locals.isFirstTime) { %>
+<div id="welcomeModal" class="welcome-overlay">
+  <canvas id="welcomeConfetti" class="welcome-confetti"></canvas>
+  <div class="welcome-card">
+    <div class="welcome-emoji">🔥</div>
+    <h1>Bem-vindo à VS TEAM, <%= cliente.name.split(' ')[0] %>!</h1>
+    <p class="text-muted">Sua jornada de transformação começa agora.</p>
+    <div class="welcome-step">
+      <strong>Próximo passo:</strong> preencher seu <strong>Questionário Inicial (Anamnese)</strong> — é com ele que o Victor monta seu treino e dieta personalizados.
+    </div>
+    <a href="/cliente/questionario" class="btn btn-block" id="welcomeCta">Preencher questionário</a>
+    <button class="btn btn-ghost btn-block mt-2" id="welcomeClose">Depois eu volto</button>
+  </div>
+</div>
+<script>
+(function(){
+  const overlay = document.getElementById('welcomeModal');
+  const canvas = document.getElementById('welcomeConfetti');
+  if (!overlay || !canvas) return;
+
+  // Marca o welcome como visto
+  function markWelcomed() {
+    fetch('/cliente/welcomed', { method: 'POST', credentials: 'same-origin' });
+  }
+
+  document.getElementById('welcomeClose').addEventListener('click', () => {
+    overlay.style.display = 'none';
+    markWelcomed();
+  });
+  document.getElementById('welcomeCta').addEventListener('click', () => {
+    markWelcomed();
+  });
+
+  // Confetes em canvas
+  const ctx = canvas.getContext('2d');
+  function resize(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+  resize(); window.addEventListener('resize', resize);
+
+  const colors = ['#e50914','#ffc107','#ffffff','#ff6b00','#ff1a1a'];
+  const pieces = [];
+  for (let i=0; i<160; i++){
+    pieces.push({
+      x: Math.random()*canvas.width,
+      y: -Math.random()*canvas.height,
+      w: 8 + Math.random()*6,
+      h: 12 + Math.random()*8,
+      vx: -2 + Math.random()*4,
+      vy: 2 + Math.random()*4,
+      rot: Math.random()*Math.PI*2,
+      vrot: -0.2 + Math.random()*0.4,
+      color: colors[Math.floor(Math.random()*colors.length)]
+    });
+  }
+
+  let frames = 0;
+  function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    pieces.forEach(p => {
+      p.x += p.vx; p.y += p.vy; p.rot += p.vrot;
+      if (p.y > canvas.height + 50) { p.y = -50; p.x = Math.random()*canvas.width; }
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+      ctx.restore();
+    });
+    frames++;
+    if (frames < 600 && overlay.style.display !== 'none') requestAnimationFrame(draw);
+  }
+  draw();
+})();
+</script>
+<% } %>
+
+<%- include('../partials/foot') %>

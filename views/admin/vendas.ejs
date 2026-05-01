@@ -1,0 +1,169 @@
+<%- include('../partials/head') %>
+<div class="app">
+  <%- include('../partials/sidebar-admin') %>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1>Pipeline de Vendas</h1>
+        <p class="text-muted mb-0">
+          Quebre a objeção eterna. Feche o contrato.
+          <% var _gt = (typeof grandTotal !== 'undefined') ? grandTotal : 0; if (_gt > 0) { %>
+            · <span class="text-primary fw-bold">R$ <%= _gt.toFixed(2).replace('.', ',') %></span> parados no funil
+          <% } %>
+        </p>
+      </div>
+      <div class="actions flex-gap gap-1">
+        <button class="btn btn-outline" type="button" onclick="document.getElementById('modal-colunas').style.display='flex'">⚙ Gerenciar Colunas</button>
+        <a href="/admin/captacao" class="btn">+ Novo Lead</a>
+      </div>
+    </div>
+    <%- include('../partials/flash') %>
+
+    <div class="pipeline">
+      <% var _stages = (typeof stages !== 'undefined' && stages.length) ? stages : [{stage_key:'conversa',display_name:'Em Conversa',description:'Interesse inicial'},{stage_key:'vendas',display_name:'Vendas',description:'Quebra de objeção'},{stage_key:'negociacao',display_name:'Negociação',description:'Plano + Prazo'},{stage_key:'contrato',display_name:'Contrato',description:'Assinatura pendente'}]; var _pipeline = (typeof pipeline !== 'undefined') ? pipeline : {}; var _totals = (typeof totals !== 'undefined') ? totals : {}; _stages.forEach(function(s){
+        var leads = _pipeline[s.stage_key] || [];
+        var total = _totals[s.stage_key] || 0;
+      %>
+        <div class="pipeline-col" data-stage="<%= s.stage_key %>">
+          <h3>
+            <span><%= s.display_name %></span>
+            <span class="count"><%= leads.length %></span>
+          </h3>
+          <div class="flex-between mb-2" style="padding-bottom:8px;border-bottom:1px solid var(--border)">
+            <span class="fs-sm text-muted"><%= s.description || '' %></span>
+            <% if (total > 0) { %>
+              <span class="badge" style="background:var(--accent);color:#000">R$ <%= total.toFixed(2).replace('.', ',') %></span>
+            <% } else { %>
+              <span class="fs-sm text-muted">R$ 0,00</span>
+            <% } %>
+          </div>
+
+          <% if (leads.length === 0) { %>
+            <p class="text-muted fs-sm">vazio</p>
+          <% } %>
+          <% leads.forEach(function(l){ %>
+            <a href="/admin/leads/<%= l.id %>" class="pipeline-card" draggable="true" data-lead-id="<%= l.id %>" data-current-stage="<%= s.stage_key %>">
+              <div class="pc-name"><%= l.name %></div>
+              <div class="pc-sub">
+                <% if (l.phone) { %>📱 <%= l.phone %><br><% } %>
+                <% if (l.instagram) { %><%= l.instagram %><% } %>
+              </div>
+              <% if (l.plan) { %>
+                <div class="fs-sm mt-1"><span class="badge badge-outline"><%= l.plan %></span> <% if (l.value) { %>R$ <%= (Number(l.value)||0).toFixed(2).replace('.',',') %><% } %></div>
+              <% } %>
+              <div class="pc-src"><%= l.source %></div>
+            </a>
+          <% }); %>
+        </div>
+      <% }); %>
+    </div>
+
+    <div class="card mt-3">
+      <h3>📋 Dicas de pipeline</h3>
+      <div class="grid grid-2 fs-sm text-muted">
+        <div><strong class="text-primary">Conversa:</strong> Primeiro contato no Whatsapp/Direct — entendeu a dor?</div>
+        <div><strong class="text-primary">Vendas:</strong> Apresentar os 3 planos. Quebrar "tá caro", "vou pensar", "não tenho tempo".</div>
+        <div><strong class="text-primary">Negociação:</strong> Definir plano e prazo final. Fazer proposta personalizada.</div>
+        <div><strong class="text-primary">Contrato:</strong> Enviado e aguardando assinatura/primeiro pagamento.</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- MODAL: Gerenciar Colunas -->
+<div id="modal-colunas" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center;padding:20px">
+  <div class="card" style="max-width:640px;width:100%;margin:0;max-height:90vh;overflow-y:auto">
+    <div class="flex-between mb-2">
+      <h3>⚙ Gerenciar Colunas do Pipeline</h3>
+      <button type="button" onclick="document.getElementById('modal-colunas').style.display='none'" style="background:none;border:0;color:var(--text-muted);font-size:24px;cursor:pointer">×</button>
+    </div>
+    <p class="text-muted fs-sm">Customize o nome e subtítulo de cada etapa. A <strong>ordem e as chaves internas</strong> continuam as mesmas (conversa → vendas → negociação → contrato).</p>
+    <form action="/admin/vendas/colunas" method="POST">
+      <% var _stages = (typeof stages !== 'undefined' && stages.length) ? stages : [{stage_key:'conversa',display_name:'Em Conversa',description:'Interesse inicial'},{stage_key:'vendas',display_name:'Vendas',description:'Quebra de objeção'},{stage_key:'negociacao',display_name:'Negociação',description:'Plano + Prazo'},{stage_key:'contrato',display_name:'Contrato',description:'Assinatura pendente'}]; var _pipeline = (typeof pipeline !== 'undefined') ? pipeline : {}; var _totals = (typeof totals !== 'undefined') ? totals : {}; _stages.forEach(function(s){ %>
+        <div style="padding:14px;background:var(--bg-soft);border-radius:8px;margin-bottom:12px;border-left:3px solid var(--primary)">
+          <div class="fs-sm text-muted mb-1">Etapa interna: <code><%= s.stage_key %></code></div>
+          <div class="form-row">
+            <label>Nome exibido</label>
+            <input type="text" name="names[<%= s.stage_key %>]" value="<%= s.display_name %>" required>
+          </div>
+          <div class="form-row" style="margin-bottom:0">
+            <label>Subtítulo</label>
+            <input type="text" name="descriptions[<%= s.stage_key %>]" value="<%= s.description || '' %>">
+          </div>
+        </div>
+      <% }); %>
+      <div class="flex-gap gap-1">
+        <button class="btn" type="submit">Salvar</button>
+        <button class="btn btn-ghost" type="button" onclick="document.getElementById('modal-colunas').style.display='none'">Cancelar</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+(function(){
+  const cards = document.querySelectorAll('.pipeline-card[draggable="true"]');
+  const cols = document.querySelectorAll('.pipeline-col[data-stage]');
+  let dragInfo = null;
+  let suppressClickUntil = 0;
+
+  cards.forEach(card => {
+    card.addEventListener('dragstart', (e) => {
+      dragInfo = { leadId: card.dataset.leadId, from: card.dataset.currentStage };
+      try { e.dataTransfer.setData('text/plain', card.dataset.leadId); } catch(_) {}
+      e.dataTransfer.effectAllowed = 'move';
+      card.classList.add('dragging');
+    });
+    card.addEventListener('dragend', () => {
+      card.classList.remove('dragging');
+      suppressClickUntil = Date.now() + 300;
+      cols.forEach(c => c.classList.remove('drag-over'));
+    });
+    card.addEventListener('click', (e) => {
+      if (Date.now() < suppressClickUntil) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    });
+  });
+
+  cols.forEach(col => {
+    col.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      col.classList.add('drag-over');
+    });
+    col.addEventListener('dragleave', (e) => {
+      if (!col.contains(e.relatedTarget)) col.classList.remove('drag-over');
+    });
+    col.addEventListener('drop', (e) => {
+      e.preventDefault();
+      col.classList.remove('drag-over');
+      if (!dragInfo) return;
+      const newStage = col.dataset.stage;
+      if (dragInfo.from === newStage) return;
+
+      // Otimismo visual: move o card na tela antes da resposta
+      const card = document.querySelector('.pipeline-card[data-lead-id="' + dragInfo.leadId + '"]');
+      const body = col.querySelector('.pipeline-col-body') || col;
+      if (card) { card.dataset.currentStage = newStage; body.appendChild(card); }
+
+      const fd = new URLSearchParams();
+      fd.append('stage', newStage);
+      fetch('/admin/leads/' + dragInfo.leadId + '/stage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: fd.toString(),
+        credentials: 'same-origin'
+      }).then(r => {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        // Recarrega a página para atualizar contadores e totais R$
+        location.reload();
+      }).catch(err => {
+        alert('Erro ao mover: ' + err.message);
+        location.reload();
+      });
+    });
+  });
+})();
+</script>
+<%- include('../partials/foot') %>

@@ -1,0 +1,92 @@
+<%- include('../partials/head') %>
+<div class="app">
+  <%- include('../partials/sidebar-admin') %>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1>Gym Cats — Ranking & Gamificação</h1>
+        <p class="text-muted mb-0">Pontuação por engajamento: check-ins, fotos, fichas. Motiva a galera!</p>
+      </div>
+    </div>
+    <%- include('../partials/flash') %>
+
+    <div class="grid grid-2">
+      <div>
+        <h3>🔥 Ranking atual</h3>
+        <% ranking.forEach(function(c, i){
+          const rank = i + 1;
+          const cls = rank === 1 ? 'top-1' : rank === 2 ? 'top-2' : rank === 3 ? 'top-3' : '';
+        %>
+          <div class="ranking-item <%= cls %>">
+            <div class="pos">#<%= rank %></div>
+            <div class="ava"><%= c.name.charAt(0).toUpperCase() %></div>
+            <div class="info">
+              <div class="n"><%= c.name %></div>
+              <div class="s"><%= c.instagram || '' %> · <%= c.events_count %> atividades</div>
+            </div>
+            <div class="pts"><%= c.gym_cats_points %><br><small>PTS</small></div>
+          </div>
+        <% }); %>
+        <% if (ranking.length === 0) { %>
+          <div class="card text-center"><p class="text-muted">Sem clientes no ranking.</p></div>
+        <% } %>
+      </div>
+
+      <div>
+        <div class="card">
+          <h3>+ Atribuir Pontos</h3>
+          <p class="fs-sm text-muted">Reconheça um cliente manualmente.</p>
+          <form action="/admin/gym-cats/pontos" method="POST">
+            <div class="form-row">
+              <label>Cliente</label>
+              <select name="client_id" required>
+                <option value="">— selecione —</option>
+                <% ranking.forEach(function(c){ %>
+                  <option value="<%= c.id %>"><%= c.name %> (<%= c.gym_cats_points %> pts)</option>
+                <% }); %>
+              </select>
+            </div>
+            <div class="form-row">
+              <label>Motivo / Ação</label>
+              <input type="text" name="action" required placeholder="Ex: manteve streak 4 semanas">
+            </div>
+            <div class="form-row">
+              <label>Pontos</label>
+              <input type="number" name="points" required value="50">
+            </div>
+            <button class="btn btn-block" type="submit">Atribuir Pontos</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <h3>📋 Últimos eventos</h3>
+          <% if (events.length === 0) { %>
+            <p class="text-muted fs-sm">Sem eventos.</p>
+          <% } %>
+          <% events.forEach(function(e){ %>
+            <div style="padding:8px 0;border-bottom:1px solid var(--border)" class="flex-between">
+              <div>
+                <strong class="fs-sm"><%= e.name %></strong>
+                <div class="fs-sm text-muted"><%= e.action %></div>
+              </div>
+              <span style="color:var(--accent)">+<%= e.points %></span>
+            </div>
+          <% }); %>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <h3>💡 Tabela de pontuação sugerida</h3>
+      <div class="grid grid-3 fs-sm">
+        <div>Check-in de exercício: <strong class="text-primary">+2 pts</strong></div>
+        <div>Check-in semanal completo: <strong class="text-primary">+50 pts</strong></div>
+        <div>Foto semanal enviada: <strong class="text-primary">+30 pts</strong></div>
+        <div>Ficha de avaliação enviada: <strong class="text-primary">+40 pts</strong></div>
+        <div>Questionário preenchido: <strong class="text-primary">+50 pts</strong></div>
+        <div>4 semanas consecutivas: <strong class="text-primary">+100 pts</strong></div>
+      </div>
+    </div>
+  </main>
+</div>
+<%- include('../partials/foot') %>

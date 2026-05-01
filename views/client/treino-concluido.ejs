@@ -1,0 +1,64 @@
+<%- include('../partials/head') %>
+<div class="ws-done-bg">
+  <canvas id="doneConfetti" class="welcome-confetti"></canvas>
+  <div class="ws-done-card">
+    <div class="ws-done-check">
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" width="40" height="40"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <h1>Treino concluído!</h1>
+    <p class="text-muted">Treino <%= session.day_label %> — <%= session.title %></p>
+
+    <% const min = Math.floor((session.duration_sec || 0) / 60); %>
+    <div class="ws-done-stats">
+      <div class="ws-done-stat">
+        <div class="value"><%= min %><small>min</small></div>
+        <div class="label">DURAÇÃO</div>
+      </div>
+      <div class="ws-done-divider"></div>
+      <div class="ws-done-stat">
+        <div class="value"><%= Math.round(stats.volume || 0) %><small>kg</small></div>
+        <div class="label">VOLUME</div>
+      </div>
+      <div class="ws-done-divider"></div>
+      <div class="ws-done-stat">
+        <div class="value"><%= stats.reps_total || 0 %><small>x</small></div>
+        <div class="label">REPS</div>
+      </div>
+    </div>
+
+    <div class="ws-done-points">+25 pts Gym Cats</div>
+
+    <a href="/cliente" class="btn btn-block">Voltar ao início</a>
+    <a href="/cliente/fotos" class="btn btn-ghost btn-block mt-2">Registrar foto pós-treino</a>
+  </div>
+</div>
+<script>
+(function(){
+  const c = document.getElementById('doneConfetti');
+  const ctx = c.getContext('2d');
+  function r(){ c.width = innerWidth; c.height = innerHeight; }
+  r(); addEventListener('resize', r);
+  const cols = ['#e50914','#ffc107','#ffffff','#00c853'];
+  const ps = Array.from({length:140}, () => ({
+    x: Math.random()*c.width, y: -Math.random()*c.height,
+    w:8+Math.random()*6, h:12+Math.random()*8,
+    vx:-2+Math.random()*4, vy:2+Math.random()*4,
+    rot:Math.random()*6.28, vrot:-0.2+Math.random()*0.4,
+    color: cols[Math.floor(Math.random()*cols.length)]
+  }));
+  let n = 0;
+  function loop(){
+    ctx.clearRect(0,0,c.width,c.height);
+    ps.forEach(p => {
+      p.x += p.vx; p.y += p.vy; p.rot += p.vrot;
+      if (p.y > c.height + 50) { p.y = -50; p.x = Math.random()*c.width; }
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.fillStyle = p.color; ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+      ctx.restore();
+    });
+    if (n++ < 500) requestAnimationFrame(loop);
+  }
+  loop();
+})();
+</script>
+<%- include('../partials/foot') %>

@@ -1,0 +1,84 @@
+<%- include('../partials/head') %>
+<div class="app">
+  <%- include('../partials/sidebar-client') %>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1>Meus Treinos</h1>
+        <p class="text-muted mb-0">Semana <%= weekParam %> · <%= cliente.plan || '' %></p>
+      </div>
+      <% if (allWeeks.length > 1) { %>
+        <form method="GET" style="margin:0">
+          <select name="week" onchange="this.form.submit()" style="padding:8px 12px;background:var(--bg-soft);border:1px solid var(--border);border-radius:6px;color:var(--text)">
+            <% allWeeks.forEach(function(w){ %>
+              <option value="<%= w.week_number %>" <%= w.week_number === weekParam ? 'selected' : '' %>>Semana <%= w.week_number %></option>
+            <% }); %>
+          </select>
+        </form>
+      <% } %>
+    </div>
+    <%- include('../partials/flash') %>
+
+    <% if (workoutsFull.length === 0) { %>
+      <div class="card text-center">
+        <h3>Treino ainda não postado</h3>
+        <p class="text-muted">O Victor tá montando teu treino. Se mantiver as fotos e ficha em dia, chega bem rápido!</p>
+      </div>
+    <% } %>
+
+    <% workoutsFull.forEach(function(w){ %>
+      <div class="card">
+        <h3>Treino <%= w.day_label %> — <%= w.title %></h3>
+        <p class="text-muted fs-sm">
+          <% if (w.focus) { %><span class="badge badge-outline"><%= w.focus %></span><% } %>
+          <% if (w.notes) { %> · <%= w.notes %><% } %>
+        </p>
+
+        <% if (w.exercises.length === 0) { %>
+          <p class="text-muted fs-sm">Sem exercícios cadastrados.</p>
+        <% } %>
+        <% w.exercises.forEach(function(e){ %>
+          <div class="exercise">
+            <div class="video-wrap">
+              <% if (e.video_url) { %>
+                <iframe src="<%= e.video_url %>" allowfullscreen></iframe>
+              <% } else { %>
+                <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:12px">sem vídeo</div>
+              <% } %>
+            </div>
+            <div class="exec-info">
+              <div class="ex-name"><%= e.name %></div>
+              <div class="params">
+                <% if (e.sets) { %><span><b>Séries:</b> <%= e.sets %></span><% } %>
+                <% if (e.reps) { %><span><b>Reps:</b> <%= e.reps %></span><% } %>
+                <% if (e.rest) { %><span><b>Descanso:</b> <%= e.rest %></span><% } %>
+                <% if (e.load_kg) { %><span><b>Carga:</b> <%= e.load_kg %> kg</span><% } %>
+              </div>
+              <% if (e.notes) { %><p class="fs-sm text-muted"><%= e.notes %></p><% } %>
+            </div>
+            <form action="/cliente/exercicios/<%= e.id %>/check" method="POST" style="margin:0">
+              <button type="submit" class="ex-check <%= e.checked_today ? 'checked' : '' %>" title="Marcar como feito hoje">
+                <%= e.checked_today ? '✓' : '○' %>
+              </button>
+            </form>
+          </div>
+        <% }); %>
+      </div>
+    <% }); %>
+
+    <% if (diet) { %>
+      <div class="card">
+        <h3>🥗 Dieta da semana <%= diet.week_number %></h3>
+        <div class="flex-gap gap-1 mb-2" style="flex-wrap:wrap">
+          <% if (diet.calories) { %><span class="badge badge-primary"><%= diet.calories %> kcal</span><% } %>
+          <% if (diet.protein) { %><span class="badge badge-outline">P: <%= diet.protein %>g</span><% } %>
+          <% if (diet.carbs) { %><span class="badge badge-outline">C: <%= diet.carbs %>g</span><% } %>
+          <% if (diet.fats) { %><span class="badge badge-outline">G: <%= diet.fats %>g</span><% } %>
+        </div>
+        <pre style="background:var(--bg-soft);padding:16px;border-radius:8px;white-space:pre-wrap;font-family:inherit;margin:0"><%= diet.meal_plan %></pre>
+        <% if (diet.notes) { %><p class="fs-sm text-muted mt-2"><strong>Notas:</strong> <%= diet.notes %></p><% } %>
+      </div>
+    <% } %>
+  </main>
+</div>
+<%- include('../partials/foot') %>

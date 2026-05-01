@@ -1,0 +1,124 @@
+<%- include('../partials/head') %>
+<div class="app">
+  <%- include('../partials/sidebar-client') %>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1>Ficha de Avaliação Semanal</h1>
+        <p class="text-muted mb-0">Envie até sábado. Vale <strong class="text-primary">+40 pts Gym Cats</strong>. Anexar fotos dá <strong class="text-primary">+30 pts cada</strong>.</p>
+      </div>
+    </div>
+    <%- include('../partials/flash') %>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <h3>Nova Ficha</h3>
+        <form action="/cliente/avaliacao" method="POST" enctype="multipart/form-data">
+          <div class="form-row">
+            <label>Semana *</label>
+            <input type="number" name="week_number" value="<%= cliente.current_week %>" required>
+          </div>
+          <div class="form-grid">
+            <div class="form-row"><label>Peso (kg)</label><input type="number" step="0.1" name="weight" required></div>
+            <div class="form-row"><label>Peito (cm)</label><input type="number" step="0.1" name="chest"></div>
+          </div>
+          <div class="form-grid">
+            <div class="form-row"><label>Cintura (cm)</label><input type="number" step="0.1" name="waist"></div>
+            <div class="form-row"><label>Quadril (cm)</label><input type="number" step="0.1" name="hip"></div>
+          </div>
+          <div class="form-grid">
+            <div class="form-row"><label>Braço (cm)</label><input type="number" step="0.1" name="arm"></div>
+            <div class="form-row"><label>Perna (cm)</label><input type="number" step="0.1" name="leg"></div>
+          </div>
+          <div class="form-row">
+            <label>Notas (como se sentiu, sintomas, observações)</label>
+            <textarea name="notes" rows="4"></textarea>
+          </div>
+
+          <!-- Upload de fotos (novo) -->
+          <div class="upload-zone">
+            <label class="upload-label">Fotos de acompanhamento (opcional — até 4)</label>
+            <p class="fs-sm text-muted mb-2">Anexe agora e a foto da semana já entra no histórico (+30 pts cada).</p>
+            <label class="upload-drop" id="uploadDrop">
+              <input type="file" name="photos" id="uploadInput" accept="image/*" multiple style="display:none">
+              <div class="upload-cta">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="28" height="28">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/>
+                  <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                <div>
+                  <strong>Clique para selecionar imagens</strong>
+                  <div class="fs-sm text-muted">ou arraste e solte aqui (jpg, png — máx. 10MB cada)</div>
+                </div>
+              </div>
+            </label>
+            <div class="upload-preview" id="uploadPreview"></div>
+          </div>
+
+          <button class="btn btn-block" type="submit">Enviar Ficha (+40 pts)</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>Histórico (<%= evals.length %>)</h3>
+        <% if (evals.length === 0) { %>
+          <p class="text-muted">Sem fichas enviadas ainda. Bora começar!</p>
+        <% } else { %>
+          <% evals.forEach(function(e){ %>
+            <div style="padding:12px;background:var(--bg-soft);border-radius:8px;margin-bottom:8px">
+              <div class="flex-between">
+                <strong>Semana <%= e.week_number %></strong>
+                <span class="fs-sm text-muted"><%= e.submitted_at.slice(0,10) %></span>
+              </div>
+              <div class="fs-sm mt-1">
+                <%= e.weight ? e.weight + 'kg' : '' %>
+                <% if (e.chest) { %> · P: <%= e.chest %>cm<% } %>
+                <% if (e.waist) { %> · C: <%= e.waist %>cm<% } %>
+                <% if (e.arm) { %> · B: <%= e.arm %>cm<% } %>
+                <% if (e.leg) { %> · Pe: <%= e.leg %>cm<% } %>
+              </div>
+              <% if (e.notes) { %><p class="fs-sm text-muted mt-1"><%= e.notes %></p><% } %>
+            </div>
+          <% }); %>
+        <% } %>
+      </div>
+    </div>
+  </main>
+</div>
+<script>
+(function(){
+  const input = document.getElementById('uploadInput');
+  const drop = document.getElementById('uploadDrop');
+  const preview = document.getElementById('uploadPreview');
+  if (!input || !drop) return;
+
+  function render(files) {
+    preview.innerHTML = '';
+    Array.from(files).slice(0, 4).forEach(f => {
+      if (!f.type.startsWith('image/')) return;
+      const url = URL.createObjectURL(f);
+      const div = document.createElement('div');
+      div.className = 'upload-thumb';
+      div.innerHTML = '<img src="'+url+'"><span>'+f.name+'</span>';
+      preview.appendChild(div);
+    });
+  }
+
+  input.addEventListener('change', () => render(input.files));
+
+  ['dragenter','dragover'].forEach(ev => {
+    drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('drag'); });
+  });
+  ['dragleave','drop'].forEach(ev => {
+    drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('drag'); });
+  });
+  drop.addEventListener('drop', e => {
+    if (e.dataTransfer.files.length) {
+      input.files = e.dataTransfer.files;
+      render(input.files);
+    }
+  });
+})();
+</script>
+<%- include('../partials/foot') %>

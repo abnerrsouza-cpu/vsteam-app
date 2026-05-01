@@ -1,0 +1,118 @@
+<%- include('../partials/head') %>
+<div class="app">
+  <%- include('../partials/sidebar-admin') %>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1>Gestão Contínua</h1>
+        <p class="text-muted mb-0">Ciclo semanal: quarta lembrete → sábado fotos+ficha → feedback → novo treino.</p>
+      </div>
+      <form action="/admin/lembretes/disparo-semanal" method="POST" data-confirm="Criar lembretes para TODOS os clientes ativos?" style="margin:0">
+        <button class="btn" type="submit">🔥 Disparo de Quarta</button>
+      </form>
+    </div>
+    <%- include('../partials/flash') %>
+
+    <!-- NAVEGADOR DA SEMANA DO CICLO -->
+    <div class="cycle-nav">
+      <form action="/admin/semana/voltar" method="POST" style="margin:0" data-confirm="Voltar para a semana anterior? Clientes ativos terão current_week decrementado.">
+        <button type="submit" class="cycle-btn" title="Semana anterior <%= prevRange ? '(' + prevRange.label + ')' : '' %>" <%= !prevRange ? 'disabled' : '' %>>‹</button>
+      </form>
+      <div class="cycle-info">
+        <div class="cycle-label">CICLO ATUAL</div>
+        <div class="cycle-value"><%= range.label %></div>
+        <div class="cycle-sub">Semana <%= week %> do programa</div>
+      </div>
+      <form action="/admin/semana/avancar" method="POST" style="margin:0" data-confirm="Avançar para a próxima semana (<%= nextRange.label %>)? Todos os clientes ativos terão current_week incrementado e novos lembretes serão criados.">
+        <button type="submit" class="cycle-btn" title="Próxima semana (<%= nextRange.label %>)">›</button>
+      </form>
+      <details class="cycle-settings">
+        <summary title="Ajustar data de início do ciclo">⚙</summary>
+        <form action="/admin/semana/start-date" method="POST" class="cycle-settings-panel">
+          <label>Data em que a semana 1 começou (segunda-feira)</label>
+          <input type="date" name="date" value="<%= range.start %>" required>
+          <button class="btn btn-sm" type="submit">Recalibrar</button>
+        </form>
+      </details>
+    </div>
+
+    <% var _week = (typeof week !== 'undefined') ? week : 1; var totalAtivos = clientes.length;
+       const entregouFicha = clientes.filter(c => (c.eval_this_week||0) > 0).length;
+       const entregouFoto = clientes.filter(c => (c.photo_this_week||0) > 0).length;
+       const feedbackFeito = clientes.filter(c => (c.feedback_this_week||0) > 0).length;
+    %>
+
+    <div class="kpi-row mb-3">
+      <div class="stat">
+        <div class="label">Clientes Ativos</div>
+        <div class="value"><%= totalAtivos %></div>
+      </div>
+      <div class="stat <%= entregouFicha === totalAtivos && totalAtivos > 0 ? 'success' : 'warning' %>">
+        <div class="label">Fichas</div>
+        <div class="value"><%= entregouFicha %>/<%= totalAtivos %></div>
+        <div class="extra"><%= totalAtivos > 0 ? Math.round(entregouFicha*100/totalAtivos) : 0 %>% entregue</div>
+      </div>
+      <div class="stat <%= entregouFoto === totalAtivos && totalAtivos > 0 ? 'success' : 'warning' %>">
+        <div class="label">Fotos</div>
+        <div class="value"><%= entregouFoto %>/<%= totalAtivos %></div>
+        <div class="extra"><%= totalAtivos > 0 ? Math.round(entregouFoto*100/totalAtivos) : 0 %>% entregue</div>
+      </div>
+      <div class="stat info">
+        <div class="label">Relatórios</div>
+        <div class="value"><%= feedbackFeito %>/<%= totalAtivos %></div>
+        <div class="extra">entregues pelo Victor</div>
+      </div>
+    </div>
+
+    <% if (clientes.length === 0) { %>
+      <div class="card text-center">
+        <h3>Nenhum cliente ativo</h3>
+        <p class="text-muted">Avance os clientes da implementação para gestão contínua.</p>
+      </div>
+    <% } else { %>
+      <div class="grid grid-auto">
+        <% clientes.forEach(function(c){
+          const temFicha = (c.eval_this_week||0) > 0;
+          const temFoto = (c.photo_this_week||0) > 0;
+          const temFeedback = (c.feedback_this_week||0) > 0;
+        %>
+          <a href="/admin/clientes/<%= c.id %>" class="client-card">
+            <div class="ava"><%= c.name.charAt(0).toUpperCase() %></div>
+            <div class="name"><%= c.name %></div>
+            <div class="sub"><%= range.label %> · <%= c.plan || '—' %></div>
+
+            <div class="flex-gap gap-1 mb-2" style="flex-wrap:wrap">
+              <% if (temFicha) { %>
+                <span class="badge badge-success">✓ Ficha</span>
+              <% } else { %>
+                <span class="badge badge-warning">⚠ Sem ficha</span>
+              <% } %>
+              <% if (temFoto) { %>
+                <span class="badge badge-success">✓ Foto</span>
+              <% } else { %>
+                <span class="badge badge-warning">⚠ Sem foto</span>
+              <% } %>
+              <% if (temFeedback) { %>
+                <span class="badge badge-info">✓ Relatório entregue</span>
+              <% } else if (temFicha && temFoto) { %>
+                <span class="badge" style="background:var(--accent);color:#000">🔥 Pronto para feedback!</span>
+              <% } else { %>
+                <span class="badge badge-outline">Aguardando material</span>
+              <% } %>
+            </div>
+
+            <div class="meta">
+              <span class="k">Última foto</span>
+              <span class="v"><%= c.last_photo ? c.last_photo.slice(0,10) : '—' %></span>
+            </div>
+            <div class="meta" style="border:0">
+              <span class="k">Última ficha</span>
+              <span class="v"><%= c.last_eval ? c.last_eval.slice(0,10) : '—' %></span>
+            </div>
+          </a>
+        <% }); %>
+      </div>
+    <% } %>
+  </main>
+</div>
+<%- include('../partials/foot') %>

@@ -1,0 +1,29 @@
+# Dependências
+node_modules/
+
+# Banco SQLite (dados sensíveis dos clientes)
+data/*.db
+data/*.db-shm
+data/*.db-wal
+
+# Uploads dos clientes (privados)
+public/uploads/*
+!public/uploads/.gitkeep
+
+# Logos personalizados (cada deploy decide)
+public/logos/*
+!public/logos/.gitkeep
+!public/logos/README.txt
+
+# Sistema
+.DS_Store
+npm-debug.log
+*.log
+
+# Editor
+.vscode/
+.idea/
+
+# Env
+.env
+.env.local

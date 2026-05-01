@@ -1,0 +1,82 @@
+<%- include('../partials/head') %>
+<div class="app">
+  <%- include('../partials/sidebar-client') %>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1>Minhas Fotos</h1>
+        <p class="text-muted mb-0">Mande sua foto semanal até sábado. Vale <strong class="text-primary">+30 pts Gym Cats</strong>.</p>
+      </div>
+    </div>
+    <%- include('../partials/flash') %>
+
+    <div class="card">
+      <h3>+ Enviar foto</h3>
+      <form action="/cliente/fotos" method="POST" enctype="multipart/form-data">
+        <div class="form-grid">
+          <div class="form-row">
+            <label>Categoria</label>
+            <select name="category">
+              <option value="antes">Antes (início)</option>
+              <option value="semanal" selected>Semanal (atual)</option>
+              <option value="depois">Depois (comparativa)</option>
+            </select>
+          </div>
+          <div class="form-row"><label>Semana</label><input type="number" name="week_number" placeholder="Ex: 4"></div>
+        </div>
+        <div class="form-row"><label>Foto</label><input type="file" name="photo" accept="image/*" required></div>
+        <div class="form-row"><label>Legenda (opcional)</label><input type="text" name="caption" placeholder="Ex: frente, costas, lateral"></div>
+        <button class="btn" type="submit">Enviar</button>
+      </form>
+    </div>
+
+    <% if (antes.length > 0) { %>
+    <div class="card">
+      <h3>📷 Antes (<%= antes.length %>)</h3>
+      <div class="photos-grid">
+        <% antes.forEach(function(p){ %>
+          <div class="photo-item">
+            <img src="/uploads/<%= p.filename %>" alt="">
+            <div class="caption"><span><%= p.caption || 'Antes' %></span><span><%= p.taken_at.slice(0,10) %></span></div>
+          </div>
+        <% }); %>
+      </div>
+    </div>
+    <% } %>
+
+    <% if (semanais.length > 0) { %>
+    <div class="card">
+      <h3>📆 Semanais (<%= semanais.length %>)</h3>
+      <div class="photos-grid">
+        <% semanais.forEach(function(p){ %>
+          <div class="photo-item">
+            <img src="/uploads/<%= p.filename %>" alt="">
+            <div class="caption"><span>S<%= p.week_number || '?' %> <%= p.caption || '' %></span><span><%= p.taken_at.slice(0,10) %></span></div>
+          </div>
+        <% }); %>
+      </div>
+    </div>
+    <% } %>
+
+    <% if (depois.length > 0) { %>
+    <div class="card">
+      <h3>✨ Depois (<%= depois.length %>)</h3>
+      <div class="photos-grid">
+        <% depois.forEach(function(p){ %>
+          <div class="photo-item">
+            <img src="/uploads/<%= p.filename %>" alt="">
+            <div class="caption"><span><%= p.caption || 'Depois' %></span><span><%= p.taken_at.slice(0,10) %></span></div>
+          </div>
+        <% }); %>
+      </div>
+    </div>
+    <% } %>
+
+    <% if (antes.length === 0 && semanais.length === 0 && depois.length === 0) { %>
+      <div class="card text-center mt-3">
+        <p class="text-muted">Nenhuma foto enviada ainda. Bora começar agora! 📸</p>
+      </div>
+    <% } %>
+  </main>
+</div>
+<%- include('../partials/foot') %>

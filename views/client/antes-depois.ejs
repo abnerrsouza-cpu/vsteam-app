@@ -1,0 +1,137 @@
+<%- include('../partials/head') %>
+<div class="app">
+  <%- include('../partials/sidebar-client') %>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1>Antes x Depois</h1>
+        <p class="text-muted mb-0">Arraste o controle para revelar sua transformação.</p>
+      </div>
+    </div>
+    <%- include('../partials/flash') %>
+
+    <% if (!antes || !depois) { %>
+      <div class="card text-center" style="padding:40px">
+        <h3>Em breve, a prova da sua evolução 🔥</h3>
+        <p class="text-muted">O Victor define quais fotos entram aqui, baseado no seu progresso. Continue mandando suas fotos semanais — quando houver material suficiente, as comparações aparecem nesta tela.</p>
+      </div>
+    <% } else { %>
+      <div class="ba-wrap">
+        <div class="ba-slider" id="baSlider"
+             data-before="/uploads/<%= antes.filename %>"
+             data-after="/uploads/<%= depois.filename %>"
+             role="img" aria-label="Comparação antes e depois">
+          <img class="ba-img ba-img-after" src="/uploads/<%= depois.filename %>" alt="Depois">
+          <div class="ba-before-wrap" id="baBeforeWrap">
+            <img class="ba-img ba-img-before" src="/uploads/<%= antes.filename %>" alt="Antes">
+          </div>
+          <div class="ba-divider" id="baDivider">
+            <div class="ba-handle">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/><polyline points="9 18 15 12 9 6" transform="translate(9)"/></svg>
+            </div>
+          </div>
+          <div class="ba-label ba-label-left">ANTES</div>
+          <div class="ba-label ba-label-right">DEPOIS</div>
+        </div>
+
+        <div class="ba-meta">
+          <div>
+            <div class="fs-sm text-muted">INÍCIO</div>
+            <strong><%= antes.taken_at ? antes.taken_at.slice(0,10) : '—' %></strong>
+            <% if (antes.week_number) { %><div class="fs-sm text-muted">semana <%= antes.week_number %></div><% } %>
+          </div>
+          <div class="text-center">
+            <div class="fs-sm text-muted">DURAÇÃO</div>
+            <strong>
+              <% if (antes.taken_at && depois.taken_at) {
+                const d1 = new Date(antes.taken_at);
+                const d2 = new Date(depois.taken_at);
+                const dias = Math.max(0, Math.round((d2 - d1) / (1000*60*60*24)));
+                const semanas = Math.floor(dias / 7);
+              %>
+                <%= semanas %> semana<%= semanas !== 1 ? 's' : '' %>
+              <% } else { %>—<% } %>
+            </strong>
+          </div>
+          <div class="text-right">
+            <div class="fs-sm text-muted">ATUAL</div>
+            <strong><%= depois.taken_at ? depois.taken_at.slice(0,10) : '—' %></strong>
+            <% if (depois.week_number) { %><div class="fs-sm text-muted">semana <%= depois.week_number %></div><% } %>
+          </div>
+        </div>
+      </div>
+
+      <% if (evals.length >= 2) {
+        const first = evals[0]; const last = evals[evals.length - 1];
+      %>
+        <div class="card mt-3">
+          <h3>Evolução numérica</h3>
+          <table class="table">
+            <thead><tr><th>Medida</th><th>Antes (S<%= first.week_number %>)</th><th>Agora (S<%= last.week_number %>)</th><th>Δ</th></tr></thead>
+            <tbody>
+              <% function row(label, a, b, unit) { %>
+                <tr>
+                  <td><%= label %></td>
+                  <td><%= a != null ? a + unit : '—' %></td>
+                  <td><%= b != null ? b + unit : '—' %></td>
+                  <td>
+                    <% if (a != null && b != null) {
+                      const d = (b - a).toFixed(1);
+                      const sign = d > 0 ? '+' : '';
+                    %>
+                      <strong style="color:<%= d != 0 ? 'var(--accent)' : 'var(--text-muted)' %>"><%= sign %><%= d %><%= unit %></strong>
+                    <% } else { %>—<% } %>
+                  </td>
+                </tr>
+              <% } %>
+              <%- row('Peso', first.weight, last.weight, 'kg') %>
+              <%- row('Peito', first.chest, last.chest, 'cm') %>
+              <%- row('Cintura', first.waist, last.waist, 'cm') %>
+              <%- row('Quadril', first.hip, last.hip, 'cm') %>
+              <%- row('Braço', first.arm, last.arm, 'cm') %>
+              <%- row('Perna', first.leg, last.leg, 'cm') %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    <% } %>
+  </main>
+</div>
+
+<script>
+(function(){
+  const slider = document.getElementById('baSlider');
+  if (!slider) return;
+  const wrap = document.getElementById('baBeforeWrap');
+  const divider = document.getElementById('baDivider');
+  let pct = 50;
+
+  function setPct(p){
+    pct = Math.max(0, Math.min(100, p));
+    wrap.style.width = pct + '%';
+    divider.style.left = pct + '%';
+  }
+
+  function pctFromEvent(e){
+    const rect = slider.getBoundingClientRect();
+    const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+    return (x / rect.width) * 100;
+  }
+
+  let dragging = false;
+  function start(e){ dragging = true; move(e); }
+  function move(e){ if (!dragging) return; e.preventDefault(); setPct(pctFromEvent(e)); }
+  function end(){ dragging = false; }
+
+  slider.addEventListener('mousedown', start);
+  window.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', end);
+  slider.addEventListener('touchstart', start, { passive: true });
+  window.addEventListener('touchmove', move, { passive: false });
+  window.addEventListener('touchend', end);
+
+  // Animar suave ao carregar
+  setPct(50);
+})();
+</script>
+<%- include('../partials/foot') %>

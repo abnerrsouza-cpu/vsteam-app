@@ -1,0 +1,73 @@
+<%- include('../partials/head') %>
+<div class="app">
+  <%- include('../partials/sidebar-admin') %>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1>Biblioteca de Exercícios</h1>
+        <p class="text-muted mb-0">Catálogo de movimentos com vídeo demonstrativo. Serve de base para montar treinos.</p>
+      </div>
+    </div>
+    <%- include('../partials/flash') %>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <h3>+ Novo Exercício</h3>
+        <form action="/admin/exercicios" method="POST">
+          <div class="form-row"><label>Nome *</label><input type="text" name="name" required></div>
+          <div class="form-grid">
+            <div class="form-row">
+              <label>Grupo muscular</label>
+              <select name="muscle_group">
+                <option>Peito</option><option>Costas</option><option>Ombros</option>
+                <option>Bíceps</option><option>Tríceps</option><option>Pernas</option>
+                <option>Quadríceps</option><option>Posterior de coxa</option>
+                <option>Glúteos</option><option>Panturrilha</option><option>Core</option>
+                <option>Posterior + Lombar</option><option>Cardio</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label>Equipamento</label>
+              <input type="text" name="equipment" placeholder="Barra, halter, polia...">
+            </div>
+          </div>
+          <div class="form-row">
+            <label>Vídeo (URL embed YouTube)</label>
+            <input type="url" name="video_url" placeholder="https://www.youtube.com/embed/...">
+          </div>
+          <div class="form-row">
+            <label>Descrição / execução</label>
+            <textarea name="description" rows="3"></textarea>
+          </div>
+          <button class="btn" type="submit">Adicionar</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>Catálogo (<%= items.length %>)</h3>
+        <% if (items.length === 0) { %>
+          <p class="text-muted">Biblioteca vazia.</p>
+        <% } else { %>
+          <% items.forEach(function(e){ %>
+            <div style="padding:10px;background:var(--bg-soft);border-radius:8px;margin-bottom:8px">
+              <div class="flex-between">
+                <div>
+                  <strong><%= e.name %></strong>
+                  <div class="fs-sm text-muted"><%= e.muscle_group %> · <%= e.equipment || '—' %></div>
+                </div>
+                <div class="flex-gap gap-1">
+                  <% if (e.video_url) { %><a href="<%= e.video_url %>" target="_blank" class="btn btn-sm btn-outline">▶ Ver</a><% } %>
+                  <form action="/admin/exercicios/<%= e.id %>/delete" method="POST" data-confirm="Remover?" style="margin:0">
+                    <button class="btn btn-sm btn-ghost" type="submit">×</button>
+                  </form>
+                </div>
+              </div>
+              <% if (e.description) { %><p class="fs-sm text-muted mt-1"><%= e.description %></p><% } %>
+            </div>
+          <% }); %>
+        <% } %>
+      </div>
+    </div>
+  </main>
+</div>
+<%- include('../partials/foot') %>

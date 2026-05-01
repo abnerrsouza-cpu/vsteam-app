@@ -1,0 +1,112 @@
+<%- include('../partials/head') %>
+<div class="app">
+  <%- include('../partials/sidebar-admin') %>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <a href="/admin/vendas" class="text-muted fs-sm">← Voltar ao pipeline</a>
+        <h1><%= lead.name %></h1>
+        <p class="text-muted mb-0">
+          <span class="badge badge-primary"><%= lead.stage %></span>
+          <span class="badge badge-outline">Origem: <%= lead.source %></span>
+          <% if (lead.referred_by) { %><span class="badge badge-outline">Indicado por <%= lead.referred_by %></span><% } %>
+        </p>
+      </div>
+    </div>
+    <%- include('../partials/flash') %>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <h3>📝 Informações</h3>
+        <form action="/admin/leads/<%= lead.id %>/update" method="POST">
+          <div class="form-row">
+            <label>Nome</label>
+            <input type="text" name="name" value="<%= lead.name %>" required>
+          </div>
+          <div class="form-grid">
+            <div class="form-row">
+              <label>Whatsapp</label>
+              <input type="tel" name="phone" value="<%= lead.phone || '' %>">
+            </div>
+            <div class="form-row">
+              <label>Instagram</label>
+              <input type="text" name="instagram" value="<%= lead.instagram || '' %>">
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="form-row">
+              <label>Plano oferecido</label>
+              <input type="text" name="plan" value="<%= lead.plan || '' %>" placeholder="Consultoria VIP">
+            </div>
+            <div class="form-row">
+              <label>Duração</label>
+              <input type="text" name="plan_duration" value="<%= lead.plan_duration || '' %>" placeholder="3 meses">
+            </div>
+          </div>
+          <div class="form-row">
+            <label>Valor (R$)</label>
+            <input type="number" step="0.01" name="value" value="<%= lead.value || '' %>" placeholder="897.00">
+          </div>
+          <div class="form-row">
+            <label>Anotações</label>
+            <textarea name="notes" rows="5"><%= lead.notes || '' %></textarea>
+          </div>
+          <button class="btn" type="submit">Salvar</button>
+        </form>
+      </div>
+
+      <div>
+        <div class="card">
+          <h3>Avançar pipeline</h3>
+          <p class="text-muted fs-sm">Mover para próximo estágio</p>
+          <div class="flex-gap gap-1" style="flex-wrap:wrap">
+            <% const stages = ['captacao','conversa','vendas','negociacao','contrato']; %>
+            <% stages.forEach(function(s){ %>
+              <% if (s !== lead.stage) { %>
+                <form action="/admin/leads/<%= lead.id %>/stage" method="POST" style="margin:0">
+                  <input type="hidden" name="stage" value="<%= s %>">
+                  <button class="btn btn-sm btn-outline" type="submit">→ <%= s %></button>
+                </form>
+              <% } %>
+            <% }); %>
+          </div>
+        </div>
+
+        <% if (lead.stage === 'contrato') { %>
+        <div class="card" style="border-color:var(--success)">
+          <h3 style="color:var(--success)">🎉 Fechar contrato — Virar Cliente</h3>
+          <p class="text-muted fs-sm">Gera o login do cliente e inicia a implementação.</p>
+          <form action="/admin/leads/<%= lead.id %>/converter" method="POST">
+            <div class="form-row">
+              <label>Email de acesso *</label>
+              <input type="email" name="email" required placeholder="cliente@email.com">
+            </div>
+            <div class="form-row">
+              <label>Senha temporária *</label>
+              <input type="text" name="password" required value="vsteam123">
+              <small class="text-muted">Compartilhe com o cliente. Ele pode trocar depois.</small>
+            </div>
+            <div class="form-row">
+              <label>Data de início</label>
+              <input type="date" name="start_date" value="<%= new Date().toISOString().slice(0,10) %>">
+            </div>
+            <button class="btn btn-success btn-block" type="submit">✅ Converter em Cliente</button>
+          </form>
+        </div>
+        <% } %>
+
+        <div class="card">
+          <h3 style="color:var(--danger)">Marcar como perdido</h3>
+          <form action="/admin/leads/<%= lead.id %>/perder" method="POST" data-confirm="Confirma marcar como perdido?">
+            <div class="form-row">
+              <label>Motivo</label>
+              <textarea name="notes" placeholder="Ex: achou caro, sem tempo, já fechou com outro..."></textarea>
+            </div>
+            <button class="btn btn-ghost" type="submit">Marcar perdido</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+<%- include('../partials/foot') %>

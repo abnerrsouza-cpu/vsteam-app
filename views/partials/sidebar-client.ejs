@@ -1,0 +1,54 @@
+
+<aside class="sidebar">
+  <div class="brand">
+    <% if (hasLogo) { %>
+      <img src="/logos/logo.png" alt="VS TEAM">
+    <% } else { %>
+      <div class="brand-text">VS<span style="color:var(--text)">TEAM</span><span class="sub">ATLETA</span></div>
+    <% } %>
+  </div>
+
+  <nav>
+    <a href="/cliente" class="nav-item <%= currentPath === '/' ? 'active' : '' %>">
+      <span class="nav-icon"><%- ICONS.dashboard %></span>Dashboard
+    </a>
+    <a href="/cliente/treinos" class="nav-item <%= currentPath.startsWith('/treinos') ? 'active' : '' %>">
+      <span class="nav-icon"><%- ICONS.dumbbell %></span>Meus Treinos
+    </a>
+    <a href="/cliente/avaliacao" class="nav-item <%= currentPath.startsWith('/avaliacao') ? 'active' : '' %>">
+      <span class="nav-icon"><%- ICONS.activity %></span>Avaliação Semanal
+    </a>
+    <a href="/cliente/fotos" class="nav-item <%= currentPath.startsWith('/fotos') ? 'active' : '' %>">
+      <span class="nav-icon"><%- ICONS.camera %></span>Fotos
+    </a>
+    <a href="/cliente/antes-depois" class="nav-item <%= currentPath.startsWith('/antes-depois') ? 'active' : '' %>">
+      <span class="nav-icon"><%- ICONS.beforeAfter %></span>Antes x Depois
+    </a>
+    <a href="/cliente/progressao" class="nav-item <%= currentPath.startsWith('/progressao') ? 'active' : '' %>">
+      <span class="nav-icon"><%- ICONS.trending %></span>Minha Progressão
+    </a>
+        <a href="/cliente/feedbacks" class="nav-item <%= currentPath.startsWith('/feedbacks') ? 'active' : '' %>">
+      <span class="nav-icon"><%- ICONS.message %></span>Feedbacks
+    </a>
+    <a href="/cliente/gym-cats" class="nav-item <%= currentPath.startsWith('/gym-cats') ? 'active' : '' %>">
+      <span class="nav-icon"><%- ICONS.trophy %></span>Gym Cats
+    </a>
+    <a href="/cliente/questionario" class="nav-item <%= currentPath.startsWith('/questionario') ? 'active' : '' %>">
+      <span class="nav-icon"><%- ICONS.clipboard %></span>Questionário
+    </a>
+    <a href="/cliente/perfil" class="nav-item <%= currentPath.startsWith('/perfil') ? 'active' : '' %>">
+      <span class="nav-icon"><%- ICONS.user %></span>Meu Perfil
+    </a>
+  </nav>
+
+  <div class="user-box">
+    <div class="user-avatar"><%= currentUser.name.charAt(0).toUpperCase() %></div>
+    <div class="user-info">
+      <div class="n"><%= currentUser.name %></div>
+      <div class="r">ATLETA</div>
+    </div>
+    <form action="/logout" method="POST" style="margin:0">
+      <button type="submit" class="logout-btn" title="Sair"><%- ICONS.logout %></button>
+    </form>
+  </div>
+</aside>

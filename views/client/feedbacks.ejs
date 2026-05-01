@@ -1,0 +1,46 @@
+<%- include('../partials/head') %>
+<div class="app">
+  <%- include('../partials/sidebar-client') %>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1>Feedbacks do Victor</h1>
+        <p class="text-muted mb-0">Toda semana, análise + otimização + próximos passos.</p>
+      </div>
+    </div>
+    <%- include('../partials/flash') %>
+
+    <% if (feedbacks.length === 0) { %>
+      <div class="card text-center">
+        <h3>Sem feedbacks ainda</h3>
+        <p class="text-muted">O primeiro feedback chega no fim do primeiro ciclo — normalmente no domingo.</p>
+      </div>
+    <% } %>
+
+    <% feedbacks.forEach(function(f){ %>
+      <div class="card">
+        <div class="flex-between mb-2">
+          <h3>Semana <%= f.week_number %></h3>
+          <span class="badge badge-outline"><%= f.sent_at.slice(0,10) %></span>
+        </div>
+        <div style="padding:14px;background:var(--bg-soft);border-radius:8px;margin-bottom:10px;border-left:3px solid var(--info)">
+          <strong class="text-primary">📊 Análise</strong>
+          <p class="fs-sm mt-1" style="white-space:pre-wrap"><%= f.analysis %></p>
+        </div>
+        <% if (f.optimizations) { %>
+        <div style="padding:14px;background:var(--bg-soft);border-radius:8px;margin-bottom:10px;border-left:3px solid var(--warning)">
+          <strong class="text-primary">⚙ Otimizações</strong>
+          <p class="fs-sm mt-1" style="white-space:pre-wrap"><%= f.optimizations %></p>
+        </div>
+        <% } %>
+        <% if (f.next_steps) { %>
+        <div style="padding:14px;background:var(--bg-soft);border-radius:8px;border-left:3px solid var(--success)">
+          <strong class="text-primary">🎯 Próximos passos</strong>
+          <p class="fs-sm mt-1" style="white-space:pre-wrap"><%= f.next_steps %></p>
+        </div>
+        <% } %>
+      </div>
+    <% }); %>
+  </main>
+</div>
+<%- include('../partials/foot') %>

@@ -1,0 +1,111 @@
+<%- include('../partials/head') %>
+<div class="app">
+  <%- include('../partials/sidebar-admin') %>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1>Questionário Inicial — Template</h1>
+        <p class="text-muted mb-0">Personalize as perguntas que o cliente preenche na anamnese.</p>
+      </div>
+    </div>
+    <%- include('../partials/flash') %>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <h3>Nova Pergunta</h3>
+        <form action="/admin/questionario-template" method="POST">
+          <div class="form-row">
+            <label>Pergunta *</label>
+            <textarea name="label" rows="2" required placeholder="Ex: Qual seu objetivo principal?"></textarea>
+          </div>
+          <div class="form-grid">
+            <div class="form-row">
+              <label>Tipo de campo</label>
+              <select name="field_type" id="newType" onchange="document.getElementById('newOpts').style.display = this.value === 'select' ? 'block' : 'none'">
+                <option value="textarea">Texto longo</option>
+                <option value="text">Texto curto</option>
+                <option value="number">Número</option>
+                <option value="select">Lista de opções</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label><input type="checkbox" name="required" value="1" checked> Obrigatória</label>
+            </div>
+          </div>
+          <div class="form-row" id="newOpts" style="display:none">
+            <label>Opções da lista (separe por |)</label>
+            <input type="text" name="options" placeholder="Sedentário | Moderado | Ativo">
+          </div>
+          <button class="btn" type="submit">Adicionar pergunta</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>Como funciona</h3>
+        <p class="fs-sm text-muted">As perguntas adicionadas aqui aparecem no questionário inicial do cliente, na ordem definida. Use as setas para reordenar. Marque uma pergunta como inativa pra escondê-la sem apagar.</p>
+        <p class="fs-sm text-muted"><strong>Tipos:</strong> texto curto (uma linha), texto longo (caixa de texto), número (peso, idade) ou lista de opções (dropdown).</p>
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <h3>Perguntas atuais (<%= items.length %>)</h3>
+      <% if (items.length === 0) { %>
+        <p class="text-muted">Sem perguntas. Adicione a primeira ao lado.</p>
+      <% } else { %>
+        <% items.forEach(function(q, i){
+          let opts = [];
+          if (q.options) { try { opts = JSON.parse(q.options); } catch(_) {} }
+        %>
+          <details style="background:var(--bg-soft); border-radius:8px; margin-bottom:10px; padding:14px">
+            <summary style="cursor:pointer; display:flex; align-items:center; gap:10px; list-style:none">
+              <span class="badge badge-outline" style="min-width:30px; text-align:center"><%= i + 1 %></span>
+              <strong style="flex:1; <%= q.active ? '' : 'opacity:0.5; text-decoration:line-through' %>"><%= q.label %></strong>
+              <span class="badge badge-outline"><%= q.field_type %></span>
+              <% if (q.required) { %><span class="badge badge-primary">obrigatória</span><% } %>
+              <% if (!q.active) { %><span class="badge" style="background:var(--text-dim);color:#000">inativa</span><% } %>
+              <form action="/admin/questionario-template/<%= q.id %>/move" method="POST" style="margin:0">
+                <input type="hidden" name="dir" value="up">
+                <button class="btn btn-sm btn-ghost" type="submit" title="Subir" <%= i === 0 ? 'disabled' : '' %>>↑</button>
+              </form>
+              <form action="/admin/questionario-template/<%= q.id %>/move" method="POST" style="margin:0">
+                <input type="hidden" name="dir" value="down">
+                <button class="btn btn-sm btn-ghost" type="submit" title="Descer" <%= i === items.length - 1 ? 'disabled' : '' %>>↓</button>
+              </form>
+            </summary>
+
+            <form action="/admin/questionario-template/<%= q.id %>/update" method="POST" class="mt-2">
+              <div class="form-row">
+                <label>Pergunta</label>
+                <textarea name="label" rows="2" required><%= q.label %></textarea>
+              </div>
+              <div class="form-grid">
+                <div class="form-row">
+                  <label>Tipo</label>
+                  <select name="field_type" onchange="this.parentElement.parentElement.querySelector('.opts-' + <%= q.id %>).style.display = this.value === 'select' ? 'block' : 'none'">
+                    <option value="textarea" <%= q.field_type === 'textarea' ? 'selected' : '' %>>Texto longo</option>
+                    <option value="text" <%= q.field_type === 'text' ? 'selected' : '' %>>Texto curto</option>
+                    <option value="number" <%= q.field_type === 'number' ? 'selected' : '' %>>Número</option>
+                    <option value="select" <%= q.field_type === 'select' ? 'selected' : '' %>>Lista</option>
+                  </select>
+                </div>
+                <div class="form-row" style="display:flex; gap:14px; align-items:center">
+                  <label><input type="checkbox" name="required" value="1" <%= q.required ? 'checked' : '' %>> Obrigatória</label>
+                  <label><input type="checkbox" name="active" value="1" <%= q.active ? 'checked' : '' %>> Ativa</label>
+                </div>
+              </div>
+              <div class="form-row opts-<%= q.id %>" style="display:<%= q.field_type === 'select' ? 'block' : 'none' %>">
+                <label>Opções (separadas por |)</label>
+                <input type="text" name="options" value="<%= opts.join(' | ') %>">
+              </div>
+              <div class="flex-gap gap-1">
+                <button class="btn btn-sm" type="submit">Salvar</button>
+                <button class="btn btn-sm btn-ghost" type="submit" formaction="/admin/questionario-template/<%= q.id %>/delete" formmethod="POST" data-confirm="Apagar esta pergunta?">Apagar</button>
+              </div>
+            </form>
+          </details>
+        <% }); %>
+      <% } %>
+    </div>
+  </main>
+</div>
+<%- include('../partials/foot') %>

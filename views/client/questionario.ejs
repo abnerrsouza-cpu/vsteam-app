@@ -1,0 +1,52 @@
+<%- include('../partials/head') %>
+<div class="app">
+  <%- include('../partials/sidebar-client') %>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1>Questionário Inicial — Anamnese</h1>
+        <p class="text-muted mb-0">Esse formulário reúne suas informações de saúde, rotina e objetivos. Com elas o Victor monta seu treino e dieta personalizados.</p>
+      </div>
+    </div>
+    <%- include('../partials/flash') %>
+
+    <% if (existing) { %>
+      <div class="alert success">Você já enviou em <%= existing.submitted_at.slice(0,10) %>. Pode atualizar os campos abaixo se algo mudou.</div>
+    <% } %>
+
+    <% if (template.length === 0) { %>
+      <div class="card text-center">
+        <p class="text-muted">O Victor ainda não configurou as perguntas. Volte em instantes.</p>
+      </div>
+    <% } else { %>
+      <form action="/cliente/questionario" method="POST" class="card" style="max-width:760px">
+        <% template.forEach(function(q){
+          const v = answers[q.q_key] || '';
+          let opts = [];
+          if (q.field_type === 'select' && q.options) { try { opts = JSON.parse(q.options) || []; } catch(_) {} }
+        %>
+          <div class="form-row">
+            <label><%= q.label %><% if (q.required) { %> <span class="text-primary">*</span><% } %></label>
+            <% if (q.field_type === 'text') { %>
+              <input type="text" name="<%= q.q_key %>" value="<%= v %>" <%= q.required ? 'required' : '' %>>
+            <% } else if (q.field_type === 'number') { %>
+              <input type="number" step="0.1" name="<%= q.q_key %>" value="<%= v %>" <%= q.required ? 'required' : '' %>>
+            <% } else if (q.field_type === 'select') { %>
+              <select name="<%= q.q_key %>" <%= q.required ? 'required' : '' %>>
+                <option value="">— selecione —</option>
+                <% opts.forEach(function(o){ %>
+                  <option value="<%= o %>" <%= v === o ? 'selected' : '' %>><%= o %></option>
+                <% }); %>
+              </select>
+            <% } else { %>
+              <textarea name="<%= q.q_key %>" rows="3" <%= q.required ? 'required' : '' %>><%= v %></textarea>
+            <% } %>
+          </div>
+        <% }); %>
+
+        <button class="btn btn-block" type="submit">Enviar Questionário (+50 pts)</button>
+      </form>
+    <% } %>
+  </main>
+</div>
+<%- include('../partials/foot') %>

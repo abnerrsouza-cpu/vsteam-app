@@ -1,0 +1,764 @@
+<%- include('../partials/head') %>
+<div class="app">
+  <%- include('../partials/sidebar-admin') %>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <a href="/admin/clientes" class="text-muted fs-sm">← Clientes</a>
+        <h1><%= cliente.name %></h1>
+        <p class="text-muted mb-0">
+          <span class="badge <%= cliente.status === 'ativo' ? 'badge-success' : 'badge-info' %>"><%= cliente.status %></span>
+          <span class="badge badge-outline">Semana <%= cliente.current_week %></span>
+          <span class="badge badge-outline"><%= cliente.plan || '—' %></span>
+          <span class="badge" style="background:var(--accent);color:#000">🏆 <%= cliente.gym_cats_points %> pts</span>
+        </p>
+      </div>
+    </div>
+    <%- include('../partials/flash') %>
+
+    <div class="flex-gap gap-1 mb-2" style="flex-wrap:wrap">
+      <a href="/admin/clientes/<%= cliente.id %>/progressao" class="btn btn-sm btn-outline">📊 Progressão de carga</a>
+    </div>
+
+    <div class="tabs">
+      <a href="#" class="tab-btn active" data-target="#tab-info">Info</a>
+      <a href="#" class="tab-btn" data-target="#tab-questionario">Questionário</a>
+      <a href="#" class="tab-btn" data-target="#tab-treinos">Treinos</a>
+      <a href="#" class="tab-btn" data-target="#tab-dieta">Dieta</a>
+      <a href="#" class="tab-btn" data-target="#tab-fotos">Fotos</a>
+      <a href="#" class="tab-btn" data-target="#tab-avaliacoes">Avaliações</a>
+      <a href="#" class="tab-btn" data-target="#tab-feedback">Feedback</a>
+      <a href="#" class="tab-btn" data-target="#tab-nutricao">Nutrição</a>
+    </div>
+
+    <style> .tab-pane { display: none; } .tab-pane.active { display: block; } </style>
+
+    <!-- INFO -->
+    <div id="tab-info" class="tab-pane active">
+      <div class="grid grid-2">
+        <div class="card">
+          <h3>Dados do cliente</h3>
+          <form action="/admin/clientes/<%= cliente.id %>/update" method="POST">
+            <div class="form-row">
+              <label>Nome</label>
+              <input type="text" name="name" value="<%= cliente.name %>" required>
+            </div>
+            <div class="form-grid">
+              <div class="form-row">
+                <label>Whatsapp</label>
+                <input type="tel" name="phone" value="<%= cliente.phone || '' %>">
+              </div>
+              <div class="form-row">
+                <label>Instagram</label>
+                <input type="text" name="instagram" value="<%= cliente.instagram || '' %>">
+              </div>
+            </div>
+            <div class="form-grid">
+              <div class="form-row">
+                <label>Plano</label>
+                <input type="text" name="plan" value="<%= cliente.plan || '' %>">
+              </div>
+              <div class="form-row">
+                <label>Duração</label>
+                <input type="text" name="plan_duration" value="<%= cliente.plan_duration || '' %>">
+              </div>
+            </div>
+            <div class="form-grid">
+              <div class="form-row">
+                <label>Valor (R$)</label>
+                <input type="number" step="0.01" name="value" value="<%= cliente.value || '' %>">
+              </div>
+              <div class="form-row">
+                <label>Semana atual</label>
+                <input type="number" name="current_week" value="<%= cliente.current_week %>" min="1">
+              </div>
+            </div>
+            <div class="form-row">
+              <label>Status</label>
+              <select name="status">
+                <option value="implementacao" <%= cliente.status === 'implementacao' ? 'selected' : '' %>>Implementação</option>
+                <option value="ativo" <%= cliente.status === 'ativo' ? 'selected' : '' %>>Ativo</option>
+                <option value="pausado" <%= cliente.status === 'pausado' ? 'selected' : '' %>>Pausado</option>
+                <option value="encerrado" <%= cliente.status === 'encerrado' ? 'selected' : '' %>>Encerrado</option>
+              </select>
+            </div>
+            <button class="btn" type="submit">Salvar</button>
+          </form>
+        </div>
+
+        <div>
+          <div class="card">
+            <h3>Permissão de print</h3>
+            <p class="fs-sm text-muted mb-2">
+              Por padrão, ao tirar print das telas de treino, aparece uma marca d'água VS TEAM sobre o conteúdo. Libere apenas para clientes de confiança.
+            </p>
+            <% if (cliente.allow_screenshot) { %>
+              <div class="alert success" style="margin-bottom:10px">Print liberado para este cliente.</div>
+            <% } else { %>
+              <div class="alert" style="margin-bottom:10px">Watermark ativa — clientes vê marca VS TEAM sobre os treinos ao printar.</div>
+            <% } %>
+            <form action="/admin/clientes/<%= cliente.id %>/screenshot-toggle" method="POST" style="margin:0">
+              <button class="btn btn-block <%= cliente.allow_screenshot ? 'btn-ghost' : '' %>" type="submit">
+                <%= cliente.allow_screenshot ? 'Bloquear print (ativar watermark)' : 'Liberar print sem watermark' %>
+              </button>
+            </form>
+          </div>
+
+          <div class="card" style="border-left:3px solid var(--accent)">
+            <h3>Vigência do plano</h3>
+            <% var _exp = (function(d){
+              if (!d) return null;
+              const today = new Date(); today.setHours(0,0,0,0);
+              const end = new Date(d + 'T00:00:00');
+              const days = Math.round((end.getTime() - today.getTime())/86400000);
+              if (days < 0) return { txt: 'Vencido há ' + Math.abs(days) + ' dia(s)', cls: 'danger' };
+              if (days === 0) return { txt: 'Vence hoje', cls: 'warning' };
+              if (days <= 7) return { txt: 'Vence em ' + days + ' dia(s)', cls: 'warning' };
+              return { txt: days + ' dias restantes', cls: 'success' };
+            })(cliente.end_date); %>
+
+            <% if (cliente.end_date) { %>
+              <p class="fs-sm">
+                <strong>Vence em:</strong> <%= cliente.end_date.split('-').reverse().join('/') %>
+                · <span class="badge badge-<%= _exp.cls %>"><%= _exp.txt %></span>
+              </p>
+            <% } else { %>
+              <p class="fs-sm text-muted">Sem data de vencimento definida.</p>
+            <% } %>
+
+            <form action="/admin/clientes/<%= cliente.id %>/vigencia" method="POST" class="mt-2">
+              <div class="flex-gap gap-1" style="align-items:flex-end">
+                <div class="form-row" style="flex:1; margin:0">
+                  <label>Atualizar vigência</label>
+                  <input type="date" name="end_date" value="<%= cliente.end_date || '' %>">
+                </div>
+                <button class="btn btn-sm" type="submit">Salvar</button>
+              </div>
+            </form>
+
+            <div class="mt-2">
+              <p class="fs-sm text-muted mb-1">Renovar rapidamente:</p>
+              <div class="flex-gap gap-1" style="flex-wrap:wrap">
+                <% [1, 3, 6, 12].forEach(function(m){ %>
+                  <form action="/admin/clientes/<%= cliente.id %>/renovar" method="POST" style="margin:0">
+                    <input type="hidden" name="meses" value="<%= m %>">
+                    <button class="btn btn-sm btn-outline" type="submit">+ <%= m %> <%= m === 1 ? 'mês' : 'meses' %></button>
+                  </form>
+                <% }); %>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Login do cliente</h3>
+            <p class="fs-sm text-muted">Acesso pelo email: <strong><%= cliente.email %></strong></p>
+            <p class="fs-sm text-muted">Para redefinir senha, pede pro cliente trocar no perfil dele ou apague e recadastre.</p>
+          </div>
+
+          <% if (cliente.status === 'implementacao') { %>
+          <div class="card" style="border-color:var(--success)">
+            <h3 style="color:var(--success)">🚀 Mover para Gestão Contínua</h3>
+            <p class="fs-sm text-muted">Assim que questionário + fotos + primeiro treino estiverem prontos.</p>
+            <form action="/admin/clientes/<%= cliente.id %>/implementation-step" method="POST">
+              <input type="hidden" name="finalize" value="1">
+              <button class="btn btn-success btn-block" type="submit">Finalizar Implementação</button>
+            </form>
+          </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+
+    <!-- QUESTIONÁRIO -->
+    <div id="tab-questionario" class="tab-pane">
+      <div class="card">
+        <h3>Questionário Inicial</h3>
+        <% if (questionnaire) { %>
+          <p class="fs-sm text-muted">Enviado em <%= questionnaire.submitted_at.slice(0,10) %></p>
+          <div class="grid grid-2 mt-2">
+            <div><strong>Objetivo:</strong> <%= questionnaire.goal || '—' %></div>
+            <div><strong>Experiência:</strong> <%= questionnaire.experience || '—' %></div>
+            <div><strong>Peso:</strong> <%= questionnaire.weight || '—' %> kg</div>
+            <div><strong>Altura:</strong> <%= questionnaire.height || '—' %> cm</div>
+            <div><strong>Idade:</strong> <%= questionnaire.age || '—' %></div>
+            <div><strong>Dias/semana:</strong> <%= questionnaire.available_days || '—' %></div>
+            <div><strong>Local de treino:</strong> <%= questionnaire.training_location || '—' %></div>
+            <div><strong>Restrições alim.:</strong> <%= questionnaire.food_restrictions || '—' %></div>
+            <div style="grid-column:1/-1"><strong>Preferências alimentares:</strong> <%= questionnaire.food_preferences || '—' %></div>
+            <div style="grid-column:1/-1"><strong>Histórico médico:</strong> <%= questionnaire.medical_history || '—' %></div>
+            <div style="grid-column:1/-1"><strong>Notas:</strong> <%= questionnaire.notes || '—' %></div>
+          </div>
+        <% } else { %>
+          <p class="text-muted">Questionário ainda não preenchido.</p>
+        <% } %>
+      </div>
+      <div class="card">
+        <h3>Preencher / Atualizar questionário</h3>
+        <form action="/admin/clientes/<%= cliente.id %>/questionario" method="POST">
+          <div class="form-row"><label>Objetivo</label><input type="text" name="goal" value="<%= questionnaire ? questionnaire.goal || '' : '' %>"></div>
+          <div class="form-grid">
+            <div class="form-row"><label>Experiência</label><input type="text" name="experience" value="<%= questionnaire ? questionnaire.experience || '' : '' %>"></div>
+            <div class="form-row"><label>Idade</label><input type="number" name="age" value="<%= questionnaire ? questionnaire.age || '' : '' %>"></div>
+          </div>
+          <div class="form-grid">
+            <div class="form-row"><label>Peso (kg)</label><input type="number" step="0.1" name="weight" value="<%= questionnaire ? questionnaire.weight || '' : '' %>"></div>
+            <div class="form-row"><label>Altura (cm)</label><input type="number" step="0.1" name="height" value="<%= questionnaire ? questionnaire.height || '' : '' %>"></div>
+          </div>
+          <div class="form-grid">
+            <div class="form-row"><label>Dias/semana</label><input type="number" name="available_days" value="<%= questionnaire ? questionnaire.available_days || '' : '' %>"></div>
+            <div class="form-row"><label>Local de treino</label><input type="text" name="training_location" value="<%= questionnaire ? questionnaire.training_location || '' : '' %>"></div>
+          </div>
+          <div class="form-row"><label>Preferências alimentares</label><textarea name="food_preferences"><%= questionnaire ? questionnaire.food_preferences || '' : '' %></textarea></div>
+          <div class="form-row"><label>Restrições</label><textarea name="food_restrictions"><%= questionnaire ? questionnaire.food_restrictions || '' : '' %></textarea></div>
+          <div class="form-row"><label>Histórico médico</label><textarea name="medical_history"><%= questionnaire ? questionnaire.medical_history || '' : '' %></textarea></div>
+          <div class="form-row"><label>Notas</label><textarea name="notes"><%= questionnaire ? questionnaire.notes || '' : '' %></textarea></div>
+          <button class="btn" type="submit">Salvar</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- TREINOS -->
+    <div id="tab-treinos" class="tab-pane">
+      <% if (typeof treinoTpls !== 'undefined' && treinoTpls.length > 0) { %>
+      <div class="card" style="border-left:3px solid var(--accent)">
+        <h3>Aplicar template de treino</h3>
+        <p class="fs-sm text-muted">Aplique um treino pré-montado neste cliente em 1 clique. O template é copiado e fica editável aqui.</p>
+        <form action="/admin/clientes/<%= cliente.id %>/aplicar-template-treino" method="POST" class="form-grid" style="align-items:end">
+          <div class="form-row" style="grid-column:1/-1">
+            <label>Escolher template</label>
+            <select name="template_id" required>
+              <option value="">— selecione —</option>
+              <% treinoTpls.forEach(function(tpl){ %>
+                <option value="<%= tpl.id %>"><%= tpl.name %><% if (tpl.focus) { %> · <%= tpl.focus %><% } %><% if (tpl.ex_count) { %> · <%= tpl.ex_count %> exs<% } %></option>
+              <% }); %>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>Semana</label>
+            <input type="number" name="week_number" value="<%= cliente.current_week %>" min="1" required>
+          </div>
+          <div class="form-row">
+            <label>Letra</label>
+            <input type="text" name="day_label" placeholder="A, B, C... (opcional)">
+          </div>
+          <button class="btn" type="submit">Aplicar</button>
+        </form>
+      </div>
+      <% } %>
+
+      <div class="card">
+        <h3>+ Novo Treino</h3>
+        <form action="/admin/clientes/<%= cliente.id %>/treinos" method="POST" class="form-grid" style="align-items:end">
+          <div class="form-row">
+            <label>Semana</label>
+            <input type="number" name="week_number" value="<%= cliente.current_week %>" min="1" required>
+          </div>
+          <div class="form-row">
+            <label>Dia (letra)</label>
+            <input type="text" name="day_label" placeholder="A, B, C..." required>
+          </div>
+          <div class="form-row">
+            <label>Título</label>
+            <input type="text" name="title" placeholder="Peito + Tríceps" required>
+          </div>
+          <div class="form-row">
+            <label>Foco</label>
+            <select name="focus"><option>Hipertrofia</option><option>Força</option><option>Resistência</option><option>Definição</option></select>
+          </div>
+          <div class="form-row" style="grid-column:1/-1">
+            <label>Notas do treino</label>
+            <textarea name="notes" rows="2"></textarea>
+          </div>
+          <button class="btn" type="submit">Adicionar Treino</button>
+        </form>
+      </div>
+
+      <div class="card" style="background:transparent;border:0;padding:0;margin-bottom:14px">
+        <a href="/admin/clientes/<%= cliente.id %>/pdf-treino?week=<%= cliente.current_week %>" target="_blank" class="btn btn-outline">
+          📄 Exportar PDF do treino (semana <%= cliente.current_week %>)
+        </a>
+      </div>
+
+      <% workouts.forEach(function(w){ var exs = w.exercises || []; %>
+        <div class="card">
+          <div class="flex-between mb-2">
+            <div>
+              <h3 style="margin-bottom:3px">Semana <%= w.week_number %> — Treino <%= w.day_label %>: <%= w.title %></h3>
+              <div class="fs-sm text-muted"><%= w.focus %> · <%= w.notes || '' %></div>
+            </div>
+            <form action="/admin/treinos/<%= w.id %>/delete" method="POST" data-confirm="Remover este treino?">
+              <input type="hidden" name="client_id" value="<%= cliente.id %>">
+              <button class="btn btn-sm btn-ghost" type="submit">🗑</button>
+            </form>
+          </div>
+
+          <% if (exs.length > 0) { %>
+            <table class="table">
+              <thead><tr><th>Exercício</th><th>Séries × Reps</th><th>Descanso</th><th>Carga</th><th></th></tr></thead>
+              <tbody>
+                <% exs.forEach(function(e){ %>
+                  <tr>
+                    <td>
+                      <strong><%= e.name %></strong>
+                      <% if (e.notes) { %><div class="fs-sm text-muted"><%= e.notes %></div><% } %>
+                    </td>
+                    <td><%= e.sets %> × <%= e.reps %></td>
+                    <td><%= e.rest %></td>
+                    <td><%= e.load_kg ? e.load_kg + ' kg' : '—' %></td>
+                    <td>
+                      <form action="/admin/exercicios/<%= e.id %>/delete" method="POST" style="margin:0">
+                        <input type="hidden" name="client_id" value="<%= cliente.id %>">
+                        <button class="btn btn-sm btn-ghost" type="submit" title="Remover">×</button>
+                      </form>
+                    </td>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          <% } else { %>
+            <p class="text-muted fs-sm">Sem exercícios ainda.</p>
+          <% } %>
+
+          <details class="mt-2">
+            <summary class="btn btn-sm btn-outline" style="list-style:none">+ Adicionar exercício</summary>
+            <form action="/admin/treinos/<%= w.id %>/exercicios" method="POST" class="mt-2">
+              <input type="hidden" name="client_id" value="<%= cliente.id %>">
+              <div class="form-grid">
+                <div class="form-row"><label>Nome *</label><input type="text" name="name" required></div>
+                <div class="form-row"><label>Vídeo (URL embed)</label><input type="text" name="video_url" placeholder="https://youtube.com/embed/..."></div>
+              </div>
+              <div class="form-grid">
+                <div class="form-row"><label>Séries</label><input type="text" name="sets" placeholder="4"></div>
+                <div class="form-row"><label>Repetições</label><input type="text" name="reps" placeholder="8-10"></div>
+                <div class="form-row"><label>Descanso</label><input type="text" name="rest" placeholder="90s"></div>
+                <div class="form-row"><label>Carga (kg)</label><input type="text" name="load_kg"></div>
+              </div>
+              <div class="form-row"><label>Observação</label><textarea name="notes" rows="2"></textarea></div>
+              <button class="btn btn-sm" type="submit">Salvar exercício</button>
+            </form>
+          </details>
+        </div>
+      <% }); %>
+      <% if (workouts.length === 0) { %>
+        <div class="card text-center"><p class="text-muted">Nenhum treino cadastrado ainda.</p></div>
+      <% } %>
+    </div>
+
+    <!-- DIETA -->
+    <div id="tab-dieta" class="tab-pane">
+      <% if (typeof dietaTpls !== 'undefined' && dietaTpls.length > 0) { %>
+      <div class="card" style="border-left:3px solid var(--accent)">
+        <h3>Aplicar template de dieta</h3>
+        <p class="fs-sm text-muted">Aplique um plano alimentar pré-montado em 1 clique.</p>
+        <form action="/admin/clientes/<%= cliente.id %>/aplicar-template-dieta" method="POST" class="form-grid" style="align-items:end">
+          <div class="form-row" style="grid-column:1/-1">
+            <label>Escolher template</label>
+            <select name="template_id" required>
+              <option value="">— selecione —</option>
+              <% dietaTpls.forEach(function(tpl){ %>
+                <option value="<%= tpl.id %>"><%= tpl.name %><% if (tpl.calories) { %> · <%= tpl.calories %> kcal<% } %></option>
+              <% }); %>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>Semana</label>
+            <input type="number" name="week_number" value="<%= cliente.current_week %>" min="1" required>
+          </div>
+          <button class="btn" type="submit">Aplicar</button>
+        </form>
+      </div>
+      <% } %>
+
+      <div class="card">
+        <h3>+ Nova Dieta</h3>
+        <form action="/admin/clientes/<%= cliente.id %>/dietas" method="POST">
+          <div class="form-grid">
+            <div class="form-row"><label>Semana</label><input type="number" name="week_number" value="<%= cliente.current_week %>" min="1" required></div>
+            <div class="form-row"><label>Calorias</label><input type="number" name="calories" placeholder="3000"></div>
+          </div>
+          <div class="form-grid">
+            <div class="form-row"><label>Proteína (g)</label><input type="number" name="protein"></div>
+            <div class="form-row"><label>Carbo (g)</label><input type="number" name="carbs"></div>
+            <div class="form-row"><label>Gordura (g)</label><input type="number" name="fats"></div>
+          </div>
+          <div class="form-row">
+            <label>Plano alimentar</label>
+            <textarea name="meal_plan" rows="8" placeholder="Café: ...&#10;Almoço: ...&#10;Lanche: ...&#10;Jantar: ..."></textarea>
+          </div>
+          <div class="form-row"><label>Notas (suplementação, hidratação...)</label><textarea name="notes" rows="2"></textarea></div>
+          <button class="btn" type="submit">Salvar Dieta</button>
+        </form>
+      </div>
+
+      <div class="card" style="background:transparent;border:0;padding:0;margin-bottom:14px">
+        <a href="/admin/clientes/<%= cliente.id %>/pdf-dieta?week=<%= cliente.current_week %>" target="_blank" class="btn btn-outline">
+          📄 Exportar PDF da dieta (semana <%= cliente.current_week %>)
+        </a>
+      </div>
+
+      <% diets.forEach(function(d){ %>
+        <div class="card">
+          <h3>Semana <%= d.week_number %> — <%= d.calories || 0 %> kcal</h3>
+          <div class="fs-sm text-muted">P: <%= d.protein || 0 %>g · C: <%= d.carbs || 0 %>g · G: <%= d.fats || 0 %>g</div>
+          <pre style="background:var(--bg-soft);padding:14px;border-radius:6px;white-space:pre-wrap;margin-top:10px;font-family:inherit"><%= d.meal_plan %></pre>
+          <% if (d.notes) { %><p class="fs-sm text-muted"><strong>Notas:</strong> <%= d.notes %></p><% } %>
+        </div>
+      <% }); %>
+    </div>
+
+    <!-- FOTOS -->
+    <div id="tab-fotos" class="tab-pane">
+      <div class="card">
+        <h3>Upload de foto (pelo admin)</h3>
+        <form action="/admin/clientes/<%= cliente.id %>/fotos" method="POST" enctype="multipart/form-data">
+          <div class="form-grid">
+            <div class="form-row">
+              <label>Categoria</label>
+              <select name="category">
+                <option value="antes">Antes</option>
+                <option value="semanal" selected>Semanal</option>
+                <option value="depois">Depois (comparativa)</option>
+              </select>
+            </div>
+            <div class="form-row"><label>Semana</label><input type="number" name="week_number" value="<%= cliente.current_week %>"></div>
+          </div>
+          <div class="form-row"><label>Foto</label><input type="file" name="photo" accept="image/*" required></div>
+          <div class="form-row"><label>Legenda</label><input type="text" name="caption"></div>
+          <button class="btn" type="submit">Enviar</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>Galeria (<%= photos.length %>)</h3>
+        <p class="fs-sm text-muted">Use os botões <b>A</b>/<b>D</b>/<b>S</b> em cada foto para marcar como Antes, Depois ou Semanal. O cliente vê a foto marcada como <b>ANTES</b> e a <b>DEPOIS</b> na tela "Antes x Depois".</p>
+        <% if (photos.length === 0) { %>
+          <p class="text-muted">Sem fotos ainda.</p>
+        <% } else { %>
+          <div class="photos-grid">
+            <% photos.forEach(function(p){ %>
+              <div class="photo-item photo-item-admin">
+                <img src="/uploads/<%= p.filename %>" alt="<%= p.caption || '' %>">
+                <div class="caption">
+                  <span>
+                    <% if (p.category === 'antes') { %>
+                      <span class="badge badge-outline" style="background:var(--bg-soft);color:var(--text-muted)">ANTES</span>
+                    <% } else if (p.category === 'depois') { %>
+                      <span class="badge" style="background:var(--primary);color:#fff">DEPOIS</span>
+                    <% } else { %>
+                      <span class="badge badge-outline"><%= p.category %></span>
+                    <% } %>
+                    S<%= p.week_number || '?' %>
+                  </span>
+                </div>
+                <div class="photo-actions">
+                  <form action="/admin/fotos/<%= p.id %>/categoria" method="POST" style="margin:0;display:flex;gap:3px">
+                    <input type="hidden" name="client_id" value="<%= cliente.id %>">
+                    <% if (p.category !== 'antes') { %>
+                      <button name="category" value="antes" class="btn btn-sm btn-ghost" title="Marcar como ANTES">A</button>
+                    <% } %>
+                    <% if (p.category !== 'depois') { %>
+                      <button name="category" value="depois" class="btn btn-sm" style="background:var(--primary);color:#fff" title="Marcar como DEPOIS">D</button>
+                    <% } %>
+                    <% if (p.category !== 'semanal') { %>
+                      <button name="category" value="semanal" class="btn btn-sm btn-ghost" title="Marcar como SEMANAL">S</button>
+                    <% } %>
+                  </form>
+                  <form action="/admin/fotos/<%= p.id %>/delete" method="POST" data-confirm="Apagar foto?" style="margin:0">
+                    <input type="hidden" name="client_id" value="<%= cliente.id %>">
+                    <button class="btn btn-sm btn-ghost" type="submit" title="Apagar">×</button>
+                  </form>
+                </div>
+              </div>
+            <% }); %>
+          </div>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- AVALIAÇÕES -->
+    <div id="tab-avaliacoes" class="tab-pane">
+      <div class="card">
+        <h3>+ Avaliação manual</h3>
+        <form action="/admin/clientes/<%= cliente.id %>/avaliacao" method="POST">
+          <div class="form-grid">
+            <div class="form-row"><label>Semana</label><input type="number" name="week_number" value="<%= cliente.current_week %>" required></div>
+            <div class="form-row"><label>Peso (kg)</label><input type="number" step="0.1" name="weight"></div>
+            <div class="form-row"><label>Peito (cm)</label><input type="number" step="0.1" name="chest"></div>
+            <div class="form-row"><label>Cintura (cm)</label><input type="number" step="0.1" name="waist"></div>
+            <div class="form-row"><label>Quadril (cm)</label><input type="number" step="0.1" name="hip"></div>
+            <div class="form-row"><label>Braço (cm)</label><input type="number" step="0.1" name="arm"></div>
+            <div class="form-row"><label>Perna (cm)</label><input type="number" step="0.1" name="leg"></div>
+          </div>
+          <div class="form-row"><label>Notas</label><textarea name="notes"></textarea></div>
+          <button class="btn" type="submit">Salvar</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>Histórico (<%= evals.length %>)</h3>
+        <% if (evals.length === 0) { %>
+          <p class="text-muted">Sem avaliações.</p>
+        <% } else { %>
+          <table class="table">
+            <thead><tr><th>Sem</th><th>Peso</th><th>Peito</th><th>Cintura</th><th>Quadril</th><th>Braço</th><th>Perna</th><th>Notas</th></tr></thead>
+            <tbody>
+              <% evals.forEach(function(e){ %>
+                <tr>
+                  <td><strong>S<%= e.week_number %></strong></td>
+                  <td><%= e.weight || '—' %></td>
+                  <td><%= e.chest || '—' %></td>
+                  <td><%= e.waist || '—' %></td>
+                  <td><%= e.hip || '—' %></td>
+                  <td><%= e.arm || '—' %></td>
+                  <td><%= e.leg || '—' %></td>
+                  <td class="fs-sm text-muted"><%= e.notes || '' %></td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- FEEDBACK SEMANAL -->
+    <div id="tab-feedback" class="tab-pane">
+      <div class="card" style="border-color:var(--primary)">
+        <h3>💬 Enviar Feedback + Avançar Semana</h3>
+        <p class="fs-sm text-muted">Ao salvar: semana atual avança de <%= cliente.current_week %> para <%= cliente.current_week + 1 %>.</p>
+        <form action="/admin/clientes/<%= cliente.id %>/feedback" method="POST">
+          <div class="form-row">
+            <label>Semana do feedback</label>
+            <input type="number" name="week_number" value="<%= cliente.current_week %>" required>
+          </div>
+          <div class="form-row">
+            <label>Análise / Observação da semana</label>
+            <textarea name="analysis" rows="4" placeholder="O que ele mandou de fotos? Como tá a evolução? Manteve a dieta?" required></textarea>
+          </div>
+          <div class="form-row">
+            <label>Otimizações propostas</label>
+            <textarea name="optimizations" rows="3" placeholder="Ex: aumentar carga no supino, reduzir 200 kcal, trocar exercício X..."></textarea>
+          </div>
+          <div class="form-row">
+            <label>Próximos passos</label>
+            <textarea name="next_steps" rows="3" placeholder="O que o cliente deve focar na próxima semana"></textarea>
+          </div>
+          <button class="btn btn-success btn-block" type="submit">✅ Enviar Feedback e Avançar Semana</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>Histórico de feedbacks</h3>
+        <% if (feedbacks.length === 0) { %>
+          <p class="text-muted">Sem feedbacks enviados.</p>
+        <% } %>
+        <% feedbacks.forEach(function(f){ %>
+          <div style="padding:14px;background:var(--bg-soft);border-radius:8px;margin-bottom:10px">
+            <div class="flex-between mb-1">
+              <strong>Semana <%= f.week_number %></strong>
+              <span class="fs-sm text-muted"><%= f.sent_at.slice(0,10) %></span>
+            </div>
+            <p class="fs-sm"><strong>Análise:</strong> <%= f.analysis %></p>
+            <% if (f.optimizations) { %><p class="fs-sm"><strong>Otimizações:</strong> <%= f.optimizations %></p><% } %>
+            <% if (f.next_steps) { %><p class="fs-sm"><strong>Próximos passos:</strong> <%= f.next_steps %></p><% } %>
+          </div>
+        <% }); %>
+      </div>
+    </div>
+
+    <!-- NUTRIÇÃO (calculadora) -->
+    <div id="tab-nutricao" class="tab-pane">
+      <div class="grid grid-2">
+        <div class="card">
+          <h3>Calculadora Nutricional</h3>
+          <p class="fs-sm text-muted">Cálculo automático de TMB (Mifflin-St Jeor), GET e meta de proteína. Os valores aparecem ao vivo conforme você digita.</p>
+          <% var q = questionnaire || {}; %>
+          <form id="calcForm" onsubmit="return false">
+            <div class="form-grid">
+              <div class="form-row">
+                <label>Peso (kg) *</label>
+                <input type="number" step="0.1" id="cnPeso" value="<%= q.weight || '' %>" required>
+              </div>
+              <div class="form-row">
+                <label>Altura (cm) *</label>
+                <input type="number" step="0.1" id="cnAltura" value="<%= q.height || '' %>" required>
+              </div>
+            </div>
+            <div class="form-grid">
+              <div class="form-row">
+                <label>Idade *</label>
+                <input type="number" id="cnIdade" value="<%= q.age || '' %>" required>
+              </div>
+              <div class="form-row">
+                <label>Sexo *</label>
+                <select id="cnSexo">
+                  <option value="masculino">Masculino</option>
+                  <option value="feminino">Feminino</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <label>Nível de atividade</label>
+              <select id="cnAtividade">
+                <option value="1.2">Sedentário (sem treino)</option>
+                <option value="1.375">Leve (1-3x/semana)</option>
+                <option value="1.55" selected>Moderado (3-5x/semana)</option>
+                <option value="1.725">Intenso (6-7x/semana)</option>
+                <option value="1.9">Muito intenso (atleta)</option>
+              </select>
+            </div>
+            <div class="form-grid">
+              <div class="form-row">
+                <label>Objetivo</label>
+                <select id="cnObjetivo">
+                  <option value="-500">Cutting (perda — déficit 500 kcal)</option>
+                  <option value="-300">Cutting leve (déficit 300 kcal)</option>
+                  <option value="0" selected>Manutenção</option>
+                  <option value="300">Bulking leve (superávit 300 kcal)</option>
+                  <option value="500">Bulking (superávit 500 kcal)</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <label>Meta de proteína (g/kg)</label>
+                <input type="number" step="0.1" id="cnProtKg" value="1.8" min="1" max="3">
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <div class="card">
+          <h3>Resultado</h3>
+          <div class="kpi-row" style="grid-template-columns:1fr 1fr;gap:10px">
+            <div class="stat info">
+              <div class="label">TMB</div>
+              <div class="value" id="rTMB">—</div>
+              <div class="extra">kcal em repouso</div>
+            </div>
+            <div class="stat warning">
+              <div class="label">GET</div>
+              <div class="value" id="rGET">—</div>
+              <div class="extra">gasto total estimado</div>
+            </div>
+            <div class="stat accent">
+              <div class="label">Meta calórica</div>
+              <div class="value" id="rMeta">—</div>
+              <div class="extra"><span id="rObj">—</span></div>
+            </div>
+            <div class="stat success">
+              <div class="label">Meta proteína</div>
+              <div class="value" id="rProt">—</div>
+              <div class="extra">por dia</div>
+            </div>
+          </div>
+
+          <h3 class="mt-3" style="font-size:14px">Distribuição sugerida</h3>
+          <table class="table">
+            <tbody>
+              <tr><td>Proteína</td><td class="text-right" id="rDistProt">— g</td><td class="text-right text-muted" id="rDistProtKcal">— kcal</td></tr>
+              <tr><td>Carboidrato</td><td class="text-right" id="rDistCarb">— g</td><td class="text-right text-muted" id="rDistCarbKcal">— kcal</td></tr>
+              <tr><td>Gordura</td><td class="text-right" id="rDistFat">— g</td><td class="text-right text-muted" id="rDistFatKcal">— kcal</td></tr>
+            </tbody>
+          </table>
+
+          <button type="button" class="btn btn-block mt-2" id="btnUsarMeta">Usar como meta na nova dieta</button>
+          <p class="fs-sm text-muted text-center mt-1">Pré-preenche os campos do formulário "Nova Dieta" na aba Dieta.</p>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+(function(){
+  const $ = (id) => document.getElementById(id);
+  function calc() {
+    const p = parseFloat($('cnPeso').value) || 0;
+    const a = parseFloat($('cnAltura').value) || 0;
+    const i = parseInt($('cnIdade').value) || 0;
+    const sexo = $('cnSexo').value;
+    const af = parseFloat($('cnAtividade').value) || 1.55;
+    const adj = parseFloat($('cnObjetivo').value) || 0;
+    const protKg = parseFloat($('cnProtKg').value) || 1.8;
+
+    if (!p || !a || !i) {
+      ['rTMB','rGET','rMeta','rProt','rDistProt','rDistCarb','rDistFat','rDistProtKcal','rDistCarbKcal','rDistFatKcal'].forEach(id => $(id).textContent = '—');
+      return;
+    }
+
+    // Mifflin-St Jeor
+    let tmb = (10 * p) + (6.25 * a) - (5 * i);
+    tmb += sexo === 'masculino' ? 5 : -161;
+    tmb = Math.round(tmb);
+
+    const get = Math.round(tmb * af);
+    const meta = get + adj;
+    const prot_g = Math.round(p * protKg);
+    const prot_kcal = prot_g * 4;
+
+    // 25% gordura, restante carbo
+    const fat_kcal = Math.round(meta * 0.25);
+    const fat_g = Math.round(fat_kcal / 9);
+    const carb_kcal = Math.max(0, meta - prot_kcal - fat_kcal);
+    const carb_g = Math.round(carb_kcal / 4);
+
+    $('rTMB').textContent = tmb;
+    $('rGET').textContent = get;
+    $('rMeta').textContent = meta;
+    $('rProt').textContent = prot_g + 'g';
+    $('rObj').textContent = adj === 0 ? 'manutenção' : (adj > 0 ? 'superávit ' + adj : 'déficit ' + Math.abs(adj));
+
+    $('rDistProt').textContent = prot_g + ' g';
+    $('rDistProtKcal').textContent = prot_kcal + ' kcal';
+    $('rDistCarb').textContent = carb_g + ' g';
+    $('rDistCarbKcal').textContent = carb_kcal + ' kcal';
+    $('rDistFat').textContent = fat_g + ' g';
+    $('rDistFatKcal').textContent = fat_kcal + ' kcal';
+
+    // Guardar pra reutilizar
+    window._calcResult = { kcal: meta, prot: prot_g, carb: carb_g, fat: fat_g };
+  }
+  ['cnPeso','cnAltura','cnIdade','cnSexo','cnAtividade','cnObjetivo','cnProtKg'].forEach(id => {
+    const el = $(id);
+    if (el) el.addEventListener('input', calc);
+    if (el) el.addEventListener('change', calc);
+  });
+  calc();
+
+  $('btnUsarMeta')?.addEventListener('click', () => {
+    if (!window._calcResult) { alert('Preencha os dados primeiro.'); return; }
+    const r = window._calcResult;
+    // Aciona aba Dieta e preenche
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    document.querySelector('.tab-btn[data-target="#tab-dieta"]')?.classList.add('active');
+    document.querySelector('#tab-dieta')?.classList.add('active');
+
+    const form = document.querySelector('#tab-dieta form[action$="/dietas"]');
+    if (form) {
+      form.querySelector('input[name="calories"]').value = r.kcal;
+      form.querySelector('input[name="protein"]').value = r.prot;
+      form.querySelector('input[name="carbs"]').value = r.carb;
+      form.querySelector('input[name="fats"]').value = r.fat;
+      form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+})();
+</script>
+
+<script>
+  // Ativa tab baseada no hash da URL
+  (function(){
+    const hash = location.hash.replace('#','');
+    const map = {
+      'treinos':'#tab-treinos','dieta':'#tab-dieta','fotos':'#tab-fotos',
+      'avaliacoes':'#tab-avaliacoes','feedback':'#tab-feedback','questionario':'#tab-questionario'
+    };
+    if (map[hash]) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+      document.querySelector(`.tab-btn[data-target="${map[hash]}"]`)?.classList.add('active');
+      document.querySelector(map[hash])?.classList.add('active');
+    }
+  })();
+</script>
+<%- include('../partials/foot') %>

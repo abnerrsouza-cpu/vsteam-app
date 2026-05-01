@@ -1,0 +1,78 @@
+<%- include('../partials/head') %>
+<div class="app">
+  <%- include('../partials/sidebar-admin') %>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <a href="/admin/clientes" class="text-muted fs-sm">← Clientes</a>
+        <h1>+ Novo Cliente</h1>
+        <p class="text-muted mb-0">Crie login de acesso para o cliente direto. Ele entra em implementação.</p>
+      </div>
+    </div>
+    <%- include('../partials/flash') %>
+
+    <div class="card" style="max-width:720px">
+      <form action="/admin/clientes/novo" method="POST">
+        <h3>Dados pessoais</h3>
+        <div class="form-row">
+          <label>Nome completo *</label>
+          <input type="text" name="name" required>
+        </div>
+        <div class="form-grid">
+          <div class="form-row">
+            <label>Email (login) *</label>
+            <input type="email" name="email" required>
+          </div>
+          <div class="form-row">
+            <label>Senha inicial *</label>
+            <input type="text" name="password" value="vsteam123" required>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-row">
+            <label>Whatsapp</label>
+            <input type="tel" name="phone" placeholder="+55 11 9...">
+          </div>
+          <div class="form-row">
+            <label>Instagram</label>
+            <input type="text" name="instagram" placeholder="@usuario">
+          </div>
+        </div>
+
+        <h3 class="mt-3">Plano contratado</h3>
+        <div class="form-grid">
+          <div class="form-row">
+            <label>Plano</label>
+            <select name="plan">
+              <option>Consultoria Start</option>
+              <option>Consultoria VIP</option>
+              <option selected>Consultoria Premium</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>Duração</label>
+            <select name="plan_duration">
+              <option>1 mês</option>
+              <option selected>3 meses</option>
+              <option>6 meses</option>
+              <option>12 meses</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-row">
+            <label>Valor (R$)</label>
+            <input type="number" step="0.01" name="value" placeholder="897.00">
+          </div>
+          <div class="form-row">
+            <label>Data de início</label>
+            <input type="date" name="start_date" value="<%= new Date().toISOString().slice(0,10) %>">
+          </div>
+        </div>
+
+        <button class="btn btn-block mt-2" type="submit">Cadastrar Cliente</button>
+      </form>
+    </div>
+  </main>
+</div>
+<%- include('../partials/foot') %>

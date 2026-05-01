@@ -1,0 +1,80 @@
+<aside class="sidebar">
+  <div class="brand">
+    <% if (hasLogo) { %>
+      <img src="/logos/logo.png" alt="VS TEAM">
+    <% } else { %>
+      <div class="brand-text">VS<span style="color:var(--text)">TEAM</span><span class="sub">ADMIN</span></div>
+    <% } %>
+  </div>
+
+  <nav>
+    <div class="nav-section">Visão Geral</div>
+    <a href="/admin" class="nav-item <%= currentPath === '/' ? 'active' : '' %>">
+      <span class="nav-icon"><%- ICONS.dashboard %></span>Dashboard
+    </a>
+
+    <div class="nav-section">Entrega</div>
+    <a href="/admin/implementacao" class="nav-item <%= currentPath.startsWith('/implementacao') ? 'active' : '' %>">
+      <span class="nav-icon"><%- ICONS.rocket %></span>Implementação
+    </a>
+    <a href="/admin/gestao" class="nav-item <%= currentPath.startsWith('/gestao') ? 'active' : '' %>">
+      <span class="nav-icon"><%- ICONS.refresh %></span>Gestão Contínua
+    </a>
+
+    <div class="nav-section">Alunos</div>
+    <a href="/admin/clientes" class="nav-item <%= currentPath === '/clientes' ? 'active' : '' %>">
+      <span class="nav-icon"><%- ICONS.users %></span>Todos os Alunos
+    </a>
+    <a href="/admin/convites" class="nav-item <%= currentPath.startsWith('/convites') ? 'active' : '' %>">
+      <span class="nav-icon"><%- ICONS.userPlus %></span>Convites
+    </a>
+    <a href="/admin/clientes/novo" class="nav-item <%= currentPath === '/clientes/novo' ? 'active' : '' %>">
+      <span class="nav-icon"><%- ICONS.userPlus %></span>Novo Aluno
+    </a>
+    <a href="/admin/vencimentos" class="nav-item <%= currentPath.startsWith('/vencimentos') ? 'active' : '' %>">
+      <span class="nav-icon"><%- ICONS.bell %></span>Vencimentos
+    </a>
+
+    <div class="nav-section">Ferramentas</div>
+    <a href="/admin/templates-treino" class="nav-item <%= currentPath.startsWith('/templates-treino') ? 'active' : '' %>">
+      <span class="nav-icon"><%- ICONS.clipboard %></span>Templates Treino
+    </a>
+    <a href="/admin/templates-dieta" class="nav-item <%= currentPath.startsWith('/templates-dieta') ? 'active' : '' %>">
+      <span class="nav-icon"><%- ICONS.clipboard %></span>Templates Dieta
+    </a>
+    <a href="/admin/exercicios" class="nav-item <%= currentPath.startsWith('/exercicios') ? 'active' : '' %>">
+      <span class="nav-icon"><%- ICONS.dumbbell %></span>Biblioteca
+    </a>
+    <a href="/admin/gym-cats" class="nav-item <%= currentPath.startsWith('/gym-cats') ? 'active' : '' %>">
+      <span class="nav-icon"><%- ICONS.trophy %></span>Gym Cats
+    </a>
+    <a href="/admin/questionario-template" class="nav-item <%= currentPath.startsWith('/questionario-template') ? 'active' : '' %>">
+      <span class="nav-icon"><%- ICONS.clipboard %></span>Questionário
+    </a>
+    <a href="/admin/lembretes" class="nav-item <%= currentPath.startsWith('/lembretes') ? 'active' : '' %>">
+      <span class="nav-icon"><%- ICONS.bell %></span>Lembretes
+    </a>
+
+    <div class="nav-section">Vendas</div>
+    <a href="/admin/captacao" class="nav-item <%= currentPath.startsWith('/captacao') ? 'active' : '' %>">
+      <span class="nav-icon"><%- ICONS.target %></span>Captação
+    </a>
+    <a href="/admin/vendas" class="nav-item <%= currentPath.startsWith('/vendas') || currentPath.startsWith('/leads') ? 'active' : '' %>">
+      <span class="nav-icon"><%- ICONS.trending %></span>Pipeline Vendas
+    </a>
+  </nav>
+
+  <div class="user-box">
+    <div class="user-avatar"><%= currentUser.name.charAt(0).toUpperCase() %></div>
+    <div class="user-info">
+      <div class="n"><%= currentUser.name %></div>
+      <div class="r">ADMIN</div>
+    </div>
+    <button id="themeToggle" class="logout-btn" title="Alternar tema (claro/escuro)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+    <form action="/logout" method="POST" style="margin:0">
+      <button type="submit" class="logout-btn" title="Sair"><%- ICONS.logout %></button>
+    </form>
+  </div>
+</aside>
