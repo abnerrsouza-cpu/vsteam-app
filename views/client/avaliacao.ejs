@@ -4,41 +4,41 @@
   <main class="main">
     <div class="topbar">
       <div>
-        <h1>Ficha de Avaliação Semanal</h1>
+        <h1>Ficha de Avaliação</h1>
         <p class="text-muted mb-0">Envie até sábado. Vale <strong class="text-primary">+40 pts Gym Cats</strong>. Anexar fotos dá <strong class="text-primary">+30 pts cada</strong>.</p>
       </div>
     </div>
     <%- include('../partials/flash') %>
 
+    <% if ((locals.template || []).length === 0) { %>
+      <div class="card text-center">
+        <p class="text-muted">O Victor ainda não configurou os campos da ficha. Volte em instantes.</p>
+      </div>
+    <% } else { %>
     <div class="grid grid-2">
       <div class="card">
         <h3>Nova Ficha</h3>
         <form action="/cliente/avaliacao" method="POST" enctype="multipart/form-data">
-          <div class="form-row">
-            <label>Semana *</label>
-            <input type="number" name="week_number" value="<%= cliente.current_week %>" required>
-          </div>
-          <div class="form-grid">
-            <div class="form-row"><label>Peso (kg)</label><input type="number" step="0.1" name="weight" required></div>
-            <div class="form-row"><label>Peito (cm)</label><input type="number" step="0.1" name="chest"></div>
-          </div>
-          <div class="form-grid">
-            <div class="form-row"><label>Cintura (cm)</label><input type="number" step="0.1" name="waist"></div>
-            <div class="form-row"><label>Quadril (cm)</label><input type="number" step="0.1" name="hip"></div>
-          </div>
-          <div class="form-grid">
-            <div class="form-row"><label>Braço (cm)</label><input type="number" step="0.1" name="arm"></div>
-            <div class="form-row"><label>Perna (cm)</label><input type="number" step="0.1" name="leg"></div>
-          </div>
-          <div class="form-row">
-            <label>Notas (como se sentiu, sintomas, observações)</label>
-            <textarea name="notes" rows="4"></textarea>
-          </div>
+          <% locals.template.forEach(function(q){ %>
+            <div class="form-row">
+              <label>
+                <%= q.label %>
+                <% if (q.unit) { %> <span class="text-muted">(<%= q.unit %>)</span><% } %>
+                <% if (q.required) { %> <span class="text-primary">*</span><% } %>
+              </label>
+              <% if (q.field_type === 'textarea') { %>
+                <textarea name="<%= q.q_key %>" rows="3" <%= q.required ? 'required' : '' %>></textarea>
+              <% } else if (q.field_type === 'text') { %>
+                <input type="text" name="<%= q.q_key %>" <%= q.required ? 'required' : '' %>>
+              <% } else { %>
+                <input type="number" step="0.1" name="<%= q.q_key %>" <%= q.required ? 'required' : '' %>>
+              <% } %>
+            </div>
+          <% }); %>
 
-          <!-- Upload de fotos (novo) -->
           <div class="upload-zone">
             <label class="upload-label">Fotos de acompanhamento (opcional — até 4)</label>
-            <p class="fs-sm text-muted mb-2">Anexe agora e a foto da semana já entra no histórico (+30 pts cada).</p>
+            <p class="fs-sm text-muted mb-2">Anexe agora pra ficha + foto irem juntos (+30 pts cada).</p>
             <label class="upload-drop" id="uploadDrop">
               <input type="file" name="photos" id="uploadInput" accept="image/*" multiple style="display:none">
               <div class="upload-cta">
@@ -49,7 +49,7 @@
                 </svg>
                 <div>
                   <strong>Clique para selecionar imagens</strong>
-                  <div class="fs-sm text-muted">ou arraste e solte aqui (jpg, png — máx. 10MB cada)</div>
+                  <div class="fs-sm text-muted">ou arraste e solte (jpg, png — máx. 10MB cada)</div>
                 </div>
               </div>
             </label>
@@ -65,25 +65,38 @@
         <% if (evals.length === 0) { %>
           <p class="text-muted">Sem fichas enviadas ainda. Bora começar!</p>
         <% } else { %>
-          <% evals.forEach(function(e){ %>
+          <% evals.forEach(function(e){
+            var ans = {};
+            if (e.answers_json) { try { ans = JSON.parse(e.answers_json) || {}; } catch(_) {} }
+          %>
             <div style="padding:12px;background:var(--bg-soft);border-radius:8px;margin-bottom:8px">
               <div class="flex-between">
-                <strong>Semana <%= e.week_number %></strong>
-                <span class="fs-sm text-muted"><%= e.submitted_at.slice(0,10) %></span>
+                <strong><%= e.submitted_at.slice(0,10).split('-').reverse().join('/') %></strong>
               </div>
               <div class="fs-sm mt-1">
-                <%= e.weight ? e.weight + 'kg' : '' %>
-                <% if (e.chest) { %> · P: <%= e.chest %>cm<% } %>
-                <% if (e.waist) { %> · C: <%= e.waist %>cm<% } %>
-                <% if (e.arm) { %> · B: <%= e.arm %>cm<% } %>
-                <% if (e.leg) { %> · Pe: <%= e.leg %>cm<% } %>
+                <% locals.template.forEach(function(q){
+                  var v = ans[q.q_key];
+                  if (!v) {
+                    // fallback pra colunas legadas
+                    if (q.q_key === 'weight') v = e.weight;
+                    else if (q.q_key === 'chest') v = e.chest;
+                    else if (q.q_key === 'waist') v = e.waist;
+                    else if (q.q_key === 'hip') v = e.hip;
+                    else if (q.q_key === 'arm') v = e.arm;
+                    else if (q.q_key === 'leg') v = e.leg;
+                    else if (q.q_key === 'notes') v = e.notes;
+                  }
+                  if (v) {
+                %>
+                  <span style="display:inline-block; margin-right:10px"><strong><%= q.label %>:</strong> <%= v %><% if (q.unit) { %><%= q.unit %><% } %></span>
+                <% } }); %>
               </div>
-              <% if (e.notes) { %><p class="fs-sm text-muted mt-1"><%= e.notes %></p><% } %>
             </div>
           <% }); %>
         <% } %>
       </div>
     </div>
+    <% } %>
   </main>
 </div>
 <script>
@@ -92,7 +105,6 @@
   const drop = document.getElementById('uploadDrop');
   const preview = document.getElementById('uploadPreview');
   if (!input || !drop) return;
-
   function render(files) {
     preview.innerHTML = '';
     Array.from(files).slice(0, 4).forEach(f => {
@@ -104,21 +116,10 @@
       preview.appendChild(div);
     });
   }
-
   input.addEventListener('change', () => render(input.files));
-
-  ['dragenter','dragover'].forEach(ev => {
-    drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('drag'); });
-  });
-  ['dragleave','drop'].forEach(ev => {
-    drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('drag'); });
-  });
-  drop.addEventListener('drop', e => {
-    if (e.dataTransfer.files.length) {
-      input.files = e.dataTransfer.files;
-      render(input.files);
-    }
-  });
+  ['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('drag'); }));
+  ['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('drag'); }));
+  drop.addEventListener('drop', e => { if (e.dataTransfer.files.length) { input.files = e.dataTransfer.files; render(input.files); } });
 })();
 </script>
 <%- include('../partials/foot') %>

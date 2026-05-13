@@ -1068,4 +1068,62 @@ router.post('/clientes/excluir-em-massa', (req, res) => {
   res.redirect(req.get('Referrer') || '/admin/clientes');
 });
 
+
+// ============ TEMPLATE DA AVALIAÇÃO SEMANAL ============
+router.get('/avaliacao-template', (req, res) => {
+  const items = db.prepare("SELECT * FROM evaluation_template ORDER BY order_idx ASC, id ASC").all();
+  res.render('admin/avaliacao-template', { title: 'Avaliação semanal — Template', items });
+});
+
+router.post('/avaliacao-template', (req, res) => {
+  const { label, field_type, unit, required } = req.body;
+  if (!label || !label.trim()) {
+    req.flash('error', 'Pergunta obrigatória.');
+    return res.redirect('/admin/avaliacao-template');
+  }
+  const slug = label.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 40);
+  let q_key = slug || 'campo';
+  let n = 1;
+  while (db.prepare('SELECT 1 FROM evaluation_template WHERE q_key = ?').get(q_key)) {
+    q_key = (slug || 'campo') + '_' + (++n);
+  }
+  const max = db.prepare('SELECT COALESCE(MAX(order_idx), -1) AS m FROM evaluation_template').get().m;
+  db.prepare("INSERT INTO evaluation_template (q_key, label, field_type, unit, required, order_idx) VALUES (?, ?, ?, ?, ?, ?)")
+    .run(q_key, label.trim(), field_type || 'number', unit || null, required ? 1 : 0, max + 1);
+  req.flash('success', 'Campo adicionado à avaliação.');
+  res.redirect('/admin/avaliacao-template');
+});
+
+router.post('/avaliacao-template/:id/update', (req, res) => {
+  const { label, field_type, unit, required, active } = req.body;
+  db.prepare("UPDATE evaluation_template SET label=?, field_type=?, unit=?, required=?, active=? WHERE id=?")
+    .run(label, field_type || 'number', unit || null, required ? 1 : 0, active ? 1 : 0, req.params.id);
+  req.flash('success', 'Campo atualizado.');
+  res.redirect('/admin/avaliacao-template');
+});
+
+router.post('/avaliacao-template/:id/delete', (req, res) => {
+  db.prepare("DELETE FROM evaluation_template WHERE id = ?").run(req.params.id);
+  req.flash('success', 'Campo removido.');
+  res.redirect('/admin/avaliacao-template');
+});
+
+router.post('/avaliacao-template/:id/move', (req, res) => {
+  const dir = req.body.dir === 'up' ? -1 : 1;
+  const cur = db.prepare("SELECT id, order_idx FROM evaluation_template WHERE id = ?").get(req.params.id);
+  if (!cur) return res.redirect('/admin/avaliacao-template');
+  const neighbor = db.prepare(
+    dir === -1
+      ? "SELECT id, order_idx FROM evaluation_template WHERE order_idx < ? ORDER BY order_idx DESC LIMIT 1"
+      : "SELECT id, order_idx FROM evaluation_template WHERE order_idx > ? ORDER BY order_idx ASC LIMIT 1"
+  ).get(cur.order_idx);
+  if (neighbor) {
+    db.prepare("UPDATE evaluation_template SET order_idx = ? WHERE id = ?").run(neighbor.order_idx, cur.id);
+    db.prepare("UPDATE evaluation_template SET order_idx = ? WHERE id = ?").run(cur.order_idx, neighbor.id);
+  }
+  res.redirect('/admin/avaliacao-template');
+});
+
 module.exports = router;

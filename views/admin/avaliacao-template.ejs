@@ -1,0 +1,110 @@
+<%- include('../partials/head') %>
+<div class="app">
+  <%- include('../partials/sidebar-admin') %>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1>Avaliação Semanal — Template</h1>
+        <p class="text-muted mb-0">Personalize quais dados o aluno preenche na ficha de avaliação semanal.</p>
+      </div>
+    </div>
+    <%- include('../partials/flash') %>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <h3>Novo Campo</h3>
+        <form action="/admin/avaliacao-template" method="POST">
+          <div class="form-row">
+            <label>Rótulo do campo *</label>
+            <input type="text" name="label" required placeholder="Ex: Percentual de gordura">
+          </div>
+          <div class="form-grid">
+            <div class="form-row">
+              <label>Tipo</label>
+              <select name="field_type">
+                <option value="number">Número</option>
+                <option value="text">Texto curto</option>
+                <option value="textarea">Texto longo</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label>Unidade (opcional)</label>
+              <input type="text" name="unit" placeholder="kg, cm, %, ...">
+            </div>
+          </div>
+          <div class="form-row">
+            <label style="display:flex;align-items:center;gap:8px;font-size:14px;text-transform:none;letter-spacing:0">
+              <input type="checkbox" name="required" value="1"> Obrigatório
+            </label>
+          </div>
+          <button class="btn" type="submit">Adicionar campo</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>Como funciona</h3>
+        <p class="fs-sm text-muted">Os campos definidos aqui aparecem no formulário de avaliação semanal do aluno. Use as setas para reordenar e marque como inativo pra esconder sem apagar.</p>
+        <p class="fs-sm text-muted"><strong>Sugestões úteis:</strong> Percentual de gordura, IMC, circunferência do pescoço, qualidade do sono (1-10), nível de estresse (1-10), aderência à dieta (%).</p>
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <h3>Campos atuais (<%= items.length %>)</h3>
+      <% if (items.length === 0) { %>
+        <p class="text-muted">Sem campos. Adicione o primeiro ao lado.</p>
+      <% } else { %>
+        <% items.forEach(function(q, i){ %>
+          <details style="background:var(--bg-soft); border-radius:8px; margin-bottom:10px; padding:14px">
+            <summary style="cursor:pointer; display:flex; align-items:center; gap:10px; list-style:none">
+              <span class="badge badge-outline" style="min-width:30px;text-align:center"><%= i + 1 %></span>
+              <strong style="flex:1; <%= q.active ? '' : 'opacity:0.5;text-decoration:line-through' %>">
+                <%= q.label %><% if (q.unit) { %> <span class="text-muted">(<%= q.unit %>)</span><% } %>
+              </strong>
+              <span class="badge badge-outline"><%= q.field_type %></span>
+              <% if (q.required) { %><span class="badge badge-primary">obrig.</span><% } %>
+              <% if (!q.active) { %><span class="badge" style="background:var(--text-dim);color:#000">inativo</span><% } %>
+              <form action="/admin/avaliacao-template/<%= q.id %>/move" method="POST" style="margin:0">
+                <input type="hidden" name="dir" value="up">
+                <button class="btn btn-sm btn-ghost" type="submit" title="Subir" <%= i === 0 ? 'disabled' : '' %>>↑</button>
+              </form>
+              <form action="/admin/avaliacao-template/<%= q.id %>/move" method="POST" style="margin:0">
+                <input type="hidden" name="dir" value="down">
+                <button class="btn btn-sm btn-ghost" type="submit" title="Descer" <%= i === items.length - 1 ? 'disabled' : '' %>>↓</button>
+              </form>
+            </summary>
+
+            <form action="/admin/avaliacao-template/<%= q.id %>/update" method="POST" class="mt-2">
+              <div class="form-row">
+                <label>Rótulo</label>
+                <input type="text" name="label" value="<%= q.label %>" required>
+              </div>
+              <div class="form-grid">
+                <div class="form-row">
+                  <label>Tipo</label>
+                  <select name="field_type">
+                    <option value="number" <%= q.field_type === 'number' ? 'selected' : '' %>>Número</option>
+                    <option value="text" <%= q.field_type === 'text' ? 'selected' : '' %>>Texto curto</option>
+                    <option value="textarea" <%= q.field_type === 'textarea' ? 'selected' : '' %>>Texto longo</option>
+                  </select>
+                </div>
+                <div class="form-row">
+                  <label>Unidade</label>
+                  <input type="text" name="unit" value="<%= q.unit || '' %>">
+                </div>
+              </div>
+              <div class="form-row" style="display:flex;gap:14px;align-items:center">
+                <label><input type="checkbox" name="required" value="1" <%= q.required ? 'checked' : '' %>> Obrigatório</label>
+                <label><input type="checkbox" name="active" value="1" <%= q.active ? 'checked' : '' %>> Ativo</label>
+              </div>
+              <div class="flex-gap gap-1">
+                <button class="btn btn-sm" type="submit">Salvar</button>
+                <button class="btn btn-sm btn-ghost" type="submit" formaction="/admin/avaliacao-template/<%= q.id %>/delete" formmethod="POST" data-confirm="Apagar este campo?">Apagar</button>
+              </div>
+            </form>
+          </details>
+        <% }); %>
+      <% } %>
+    </div>
+  </main>
+</div>
+<%- include('../partials/foot') %>

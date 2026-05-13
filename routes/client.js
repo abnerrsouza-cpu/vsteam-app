@@ -160,22 +160,42 @@ router.get('/antes-depois', (req, res) => {
 router.get('/avaliacao', (req, res) => {
   const cliente = db.prepare(`SELECT c.*, u.name FROM clients c JOIN users u ON u.id = c.user_id WHERE c.id = ?`).get(req.clientId);
   const evals = db.prepare(`SELECT * FROM evaluations WHERE client_id = ? ORDER BY week_number DESC`).all(req.clientId);
-  res.render('client/avaliacao', { title: 'Ficha de Avaliação — VS TEAM', cliente, evals });
+  const template = db.prepare("SELECT * FROM evaluation_template WHERE active = 1 ORDER BY order_idx ASC, id ASC").all();
+  res.render('client/avaliacao', { title: 'Ficha de Avaliação — VS TEAM', cliente, evals, template });
 });
 
 router.post('/avaliacao', upload.array('photos', 4), (req, res) => {
-  const { week_number, weight, chest, waist, hip, arm, leg, notes } = req.body;
-  const week = parseInt(week_number) || 1;
-  db.prepare(`INSERT INTO evaluations (client_id, week_number, weight, chest, waist, hip, arm, leg, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-    .run(req.clientId, week, weight || null, chest || null, waist || null, hip || null, arm || null, leg || null, notes);
+  // Carrega template ativo
+  const template = db.prepare("SELECT q_key, label, field_type FROM evaluation_template WHERE active = 1 ORDER BY order_idx").all();
+  const answers = {};
+  template.forEach(q => { answers[q.q_key] = (req.body[q.q_key] || '').trim(); });
+
+  // Semana automática (current_week do cliente)
+  const cli = db.prepare('SELECT current_week FROM clients WHERE id = ?').get(req.clientId);
+  const week = cli ? cli.current_week : 1;
+
+  // Compatibilidade: mapeia campos clássicos pra colunas legadas se existirem
+  const get = (k) => parseFloat(answers[k]) || null;
+  const weight = get('weight');
+  const chest = get('chest');
+  const waist = get('waist');
+  const hip = get('hip');
+  const arm = get('arm');
+  const leg = get('leg');
+  const notes = answers.notes || null;
+
+  db.prepare(`INSERT INTO evaluations (client_id, week_number, weight, chest, waist, hip, arm, leg, notes, answers_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(req.clientId, week, weight, chest, waist, hip, arm, leg, notes, JSON.stringify(answers));
+
   db.prepare(`INSERT INTO gym_cats_events (client_id, action, points) VALUES (?, 'Ficha de avaliação enviada', 40)`).run(req.clientId);
   db.prepare(`UPDATE clients SET gym_cats_points = gym_cats_points + 40 WHERE id = ?`).run(req.clientId);
 
-  const files = req.files || [];
+  // Fotos anexadas
   let photoCount = 0;
+  const files = req.files || [];
   files.forEach(f => {
     db.prepare(`INSERT INTO photos (client_id, category, filename, week_number, caption) VALUES (?, 'semanal', ?, ?, ?)`)
-      .run(req.clientId, f.filename, week, 'Anexo ficha S' + week);
+      .run(req.clientId, f.filename, week, 'Anexo ficha');
     photoCount++;
   });
   if (photoCount > 0) {
@@ -184,8 +204,9 @@ router.post('/avaliacao', upload.array('photos', 4), (req, res) => {
       .run(req.clientId, photoCount + ' foto(s) anexadas com a ficha', pts);
     db.prepare(`UPDATE clients SET gym_cats_points = gym_cats_points + ? WHERE id = ?`).run(pts, req.clientId);
   }
+
   const totalPts = 40 + (photoCount * 30);
-  req.flash('success', 'Ficha S' + week + ' enviada' + (photoCount > 0 ? ' com ' + photoCount + ' foto(s)' : '') + '. +' + totalPts + ' pts Gym Cats!');
+  req.flash('success', 'Ficha enviada' + (photoCount > 0 ? ' com ' + photoCount + ' foto(s)' : '') + '. +' + totalPts + ' pts Gym Cats!');
   res.redirect('/cliente/avaliacao');
 });
 

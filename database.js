@@ -300,6 +300,18 @@ CREATE TABLE IF NOT EXISTS invite_templates (
   created_at TEXT DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS evaluation_template (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  q_key TEXT UNIQUE NOT NULL,
+  label TEXT NOT NULL,
+  field_type TEXT NOT NULL DEFAULT 'number',
+  unit TEXT,
+  required INTEGER NOT NULL DEFAULT 0,
+  order_idx INTEGER NOT NULL DEFAULT 0,
+  active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS questionnaire_template (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   q_key TEXT UNIQUE NOT NULL,
@@ -707,6 +719,18 @@ CREATE TABLE IF NOT EXISTS invite_templates (
   created_at TEXT DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS evaluation_template (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  q_key TEXT UNIQUE NOT NULL,
+  label TEXT NOT NULL,
+  field_type TEXT NOT NULL DEFAULT 'number',
+  unit TEXT,
+  required INTEGER NOT NULL DEFAULT 0,
+  order_idx INTEGER NOT NULL DEFAULT 0,
+  active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS questionnaire_template (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       q_key TEXT UNIQUE NOT NULL,
@@ -719,6 +743,42 @@ CREATE TABLE IF NOT EXISTS questionnaire_template (
       created_at TEXT DEFAULT (datetime('now'))
     )`);
   } catch(e) { console.error('migrate extra:', e.message); }
+})();
+
+(function ensureEvaluationTemplate() {
+  try {
+    db.exec(`CREATE TABLE IF NOT EXISTS evaluation_template (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      q_key TEXT UNIQUE NOT NULL,
+      label TEXT NOT NULL,
+      field_type TEXT NOT NULL DEFAULT 'number',
+      unit TEXT,
+      required INTEGER NOT NULL DEFAULT 0,
+      order_idx INTEGER NOT NULL DEFAULT 0,
+      active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT DEFAULT (datetime('now'))
+    )`);
+    // Adicionar coluna answers_json em evaluations se não existir
+    const cols = db.prepare("PRAGMA table_info(evaluations)").all().map(c => c.name);
+    if (!cols.includes('answers_json')) {
+      db.exec("ALTER TABLE evaluations ADD COLUMN answers_json TEXT");
+    }
+    // Seed do template com campos atuais
+    const count = db.prepare('SELECT COUNT(*) as c FROM evaluation_template').get().c;
+    if (count === 0) {
+      const ins = db.prepare("INSERT INTO evaluation_template (q_key, label, field_type, unit, required, order_idx) VALUES (?, ?, ?, ?, ?, ?)");
+      const seed = [
+        ['weight', 'Peso', 'number', 'kg', 1, 0],
+        ['chest', 'Peito', 'number', 'cm', 0, 1],
+        ['waist', 'Cintura', 'number', 'cm', 0, 2],
+        ['hip', 'Quadril', 'number', 'cm', 0, 3],
+        ['arm', 'Braço', 'number', 'cm', 0, 4],
+        ['leg', 'Perna', 'number', 'cm', 0, 5],
+        ['notes', 'Notas (como se sentiu, sintomas, observações)', 'textarea', null, 0, 6]
+      ];
+      seed.forEach(q => ins.run(...q));
+    }
+  } catch(e) { console.error('migrate evaluation_template:', e.message); }
 })();
 
 (function ensureQuestionnaireSeed() {
