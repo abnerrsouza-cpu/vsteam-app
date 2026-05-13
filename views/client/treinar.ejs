@@ -84,7 +84,7 @@
             <label>Como foi o treino? (opcional)</label>
             <textarea name="notes" rows="3" placeholder="Como você se sentiu, o que rendeu, observações..."></textarea>
           </div>
-          <button type="submit" class="btn btn-block" id="btnFinalizar" style="font-size:16px; padding:14px" disabled>Iniciar treino primeiro</button>
+          <button type="submit" class="btn btn-block" id="btnFinalizar" style="font-size:16px; padding:14px; display:none">Finalizar treino</button>
         </div>
       </form>
 
@@ -145,6 +145,7 @@
     finalDur.value = s;
     if (s > 0) {
       btnFinal.removeAttribute('disabled');
+      btnFinal.style.display = '';
       btnFinal.textContent = 'Finalizar treino (' + fmt(s) + ')';
       btnReset.style.display = '';
     }
@@ -186,7 +187,8 @@
     btnPause.style.display = 'none';
     btnReset.style.display = 'none';
     btnFinal.setAttribute('disabled', 'disabled');
-    btnFinal.textContent = 'Iniciar treino primeiro';
+    btnFinal.style.display = 'none';
+    btnFinal.textContent = 'Finalizar treino';
     status.textContent = 'Pronto pra começar 💪';
     display.textContent = '00:00';
     finalDur.value = 0;
@@ -203,6 +205,7 @@
     status.textContent = '⏸ Pausado em ' + fmt(baseSec);
     btnReset.style.display = '';
     btnFinal.removeAttribute('disabled');
+    btnFinal.style.display = '';
     btnFinal.textContent = 'Finalizar treino (' + fmt(baseSec) + ')';
   }
   tick();
