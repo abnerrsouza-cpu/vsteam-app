@@ -21,14 +21,13 @@
     </div>
 
     <div class="tabs">
-      <a href="#" class="tab-btn active" data-target="#tab-info">Info</a>
-      <a href="#" class="tab-btn" data-target="#tab-questionario">Questionário</a>
-      <a href="#" class="tab-btn" data-target="#tab-treinos">Treinos</a>
-      <a href="#" class="tab-btn" data-target="#tab-dieta">Dieta</a>
-      <a href="#" class="tab-btn" data-target="#tab-fotos">Fotos</a>
-      <a href="#" class="tab-btn" data-target="#tab-avaliacoes">Avaliações</a>
-      <a href="#" class="tab-btn" data-target="#tab-feedback">Feedback</a>
+      <a href="#" class="tab-btn active" data-target="#tab-info">Informações</a>
+      <a href="#" class="tab-btn" data-target="#tab-treinos">Fichas (Treinos)</a>
+      <a href="#" class="tab-btn" data-target="#tab-dieta">Fichas (Dieta)</a>
+      <a href="#" class="tab-btn" data-target="#tab-feedback">Atualizações</a>
       <a href="#" class="tab-btn" data-target="#tab-nutricao">Nutrição</a>
+      <a href="#" class="tab-btn" data-target="#tab-historico">Histórico semanal</a>
+      <a href="#" class="tab-btn" data-target="#tab-questionario">Questionário</a>
     </div>
 
     <style> .tab-pane { display: none; } .tab-pane.active { display: block; } </style>
@@ -664,6 +663,168 @@
         </div>
       </div>
     </div>
+
+  
+    <!-- HISTÓRICO SEMANAL -->
+    <div id="tab-historico" class="tab-pane">
+      <div class="card">
+        <div class="flex-between mb-2">
+          <div>
+            <h3 style="margin:0">Histórico de avaliações</h3>
+            <p class="text-muted fs-sm" style="margin:4px 0 0">Cada card mostra a ficha enviada pelo aluno + as fotos da mesma semana.</p>
+          </div>
+          <% if (photos && photos.length >= 2) { %>
+            <button type="button" class="btn" id="btnAbrirComparar">Comparar fotos</button>
+          <% } %>
+        </div>
+
+        <% if (evals.length === 0) { %>
+          <p class="text-muted text-center" style="padding:30px">Nenhuma avaliação enviada ainda.</p>
+        <% } else { %>
+          <div class="grid grid-2">
+            <% evals.slice().reverse().forEach(function(e){
+                 const fotosSemana = photos.filter(p => p.week_number === e.week_number);
+            %>
+              <div style="background:var(--bg-soft); border-radius:10px; padding:16px; border-left:3px solid var(--primary)">
+                <div class="flex-between mb-2">
+                  <div>
+                    <strong style="font-size:16px"><%= (e.submitted_at || "").slice(0,10).split("-").reverse().join("/") %></strong>
+                    <div class="fs-sm text-muted">Semana <%= e.week_number %></div>
+                  </div>
+                  <% if (fotosSemana.length > 0) { %>
+                    <span class="badge badge-success"><%= fotosSemana.length %> foto(s)</span>
+                  <% } else { %>
+                    <span class="badge badge-outline">sem fotos</span>
+                  <% } %>
+                </div>
+
+                <div class="fs-sm" style="line-height:1.7">
+                  <% if (e.weight) { %><span style="display:inline-block; margin-right:12px"><strong>Peso:</strong> <%= e.weight %>kg</span><% } %>
+                  <% if (e.chest) { %><span style="display:inline-block; margin-right:12px"><strong>Peito:</strong> <%= e.chest %>cm</span><% } %>
+                  <% if (e.waist) { %><span style="display:inline-block; margin-right:12px"><strong>Cintura:</strong> <%= e.waist %>cm</span><% } %>
+                  <% if (e.hip) { %><span style="display:inline-block; margin-right:12px"><strong>Quadril:</strong> <%= e.hip %>cm</span><% } %>
+                  <% if (e.arm) { %><span style="display:inline-block; margin-right:12px"><strong>Braço:</strong> <%= e.arm %>cm</span><% } %>
+                  <% if (e.leg) { %><span style="display:inline-block; margin-right:12px"><strong>Perna:</strong> <%= e.leg %>cm</span><% } %>
+                </div>
+
+                <% if (e.notes) { %>
+                  <p class="fs-sm text-muted" style="margin-top:8px; padding:8px; background:var(--bg-card); border-radius:6px"><em><%= e.notes %></em></p>
+                <% } %>
+
+                <% if (fotosSemana.length > 0) { %>
+                  <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(80px, 1fr)); gap:6px; margin-top:12px">
+                    <% fotosSemana.forEach(function(p){ %>
+                      <img src="/uploads/<%= p.filename %>" alt=""
+                           style="width:100%; height:100px; object-fit:cover; border-radius:6px; cursor:pointer"
+                           onclick="window.dispatchEvent(new CustomEvent('vsteam-compare-pick', {detail: <%= p.id %>}))">
+                    <% }); %>
+                  </div>
+                <% } %>
+              </div>
+            <% }); %>
+          </div>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- MODAL: COMPARAR FOTOS -->
+    <% if (photos && photos.length >= 2) { %>
+      <div id="comparaModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:9999; padding:18px; overflow:auto">
+        <div style="max-width:1200px; margin:0 auto">
+          <div class="flex-between mb-2">
+            <h2 style="margin:0; color:#fff">Comparar fotos</h2>
+            <button type="button" class="btn btn-ghost" id="comparaClose" style="color:#fff; font-size:20px">×</button>
+          </div>
+          <div id="comparaSelector">
+            <p style="color:#ccc">Clique em 2 fotos: a primeira vira "Antes", a segunda vira "Depois".</p>
+            <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:10px; margin-top:14px">
+              <% photos.forEach(function(p){ %>
+                <button type="button" class="compara-pick" data-pid="<%= p.id %>" data-src="/uploads/<%= p.filename %>"
+                        style="background:transparent; border:3px solid transparent; padding:0; border-radius:8px; overflow:hidden; cursor:pointer; position:relative">
+                  <img src="/uploads/<%= p.filename %>" alt="" style="width:100%; height:160px; object-fit:cover; display:block">
+                  <span class="compara-tag" style="position:absolute; top:6px; left:6px; padding:3px 8px; border-radius:10px; font-size:10px; font-weight:700; display:none"></span>
+                  <span style="position:absolute; bottom:6px; right:6px; padding:2px 6px; background:rgba(0,0,0,0.7); color:#fff; font-size:10px; border-radius:4px">
+                    <%= (p.taken_at || "").slice(0,10).split("-").reverse().join("/") %>
+                  </span>
+                </button>
+              <% }); %>
+            </div>
+          </div>
+          <div id="comparaVisao" style="display:none">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px">
+              <div style="text-align:center">
+                <div style="color:#fff; padding:8px; background:#333; border-radius:6px 6px 0 0; font-weight:700; letter-spacing:2px">ANTES</div>
+                <img id="comparaImgA" src="" alt="" style="width:100%; max-height:78vh; object-fit:contain; background:#000">
+              </div>
+              <div style="text-align:center">
+                <div style="color:#fff; padding:8px; background:var(--primary); border-radius:6px 6px 0 0; font-weight:700; letter-spacing:2px">DEPOIS</div>
+                <img id="comparaImgB" src="" alt="" style="width:100%; max-height:78vh; object-fit:contain; background:#000">
+              </div>
+            </div>
+            <div class="flex-gap gap-1" style="justify-content:center; margin-top:18px">
+              <button type="button" class="btn btn-outline" id="comparaTrocar" style="color:#fff; border-color:#fff">Trocar fotos</button>
+              <button type="button" class="btn" id="comparaFechar">Fechar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <script>
+      (function(){
+        const modal = document.getElementById('comparaModal');
+        const selector = document.getElementById('comparaSelector');
+        const visao = document.getElementById('comparaVisao');
+        const imgA = document.getElementById('comparaImgA');
+        const imgB = document.getElementById('comparaImgB');
+        let picked = [];
+        function open() { modal.style.display='block'; document.body.style.overflow='hidden'; reset(); }
+        function close() { modal.style.display='none'; document.body.style.overflow=''; }
+        function reset() {
+          picked = []; selector.style.display=''; visao.style.display='none';
+          document.querySelectorAll('.compara-pick').forEach(b => {
+            b.style.borderColor='transparent';
+            b.querySelector('.compara-tag').style.display='none';
+          });
+        }
+        function render() {
+          if (picked.length === 2) {
+            imgA.src = picked[0].src; imgB.src = picked[1].src;
+            selector.style.display='none'; visao.style.display='';
+          }
+        }
+        document.getElementById('btnAbrirComparar')?.addEventListener('click', open);
+        document.getElementById('comparaClose').addEventListener('click', close);
+        document.getElementById('comparaFechar').addEventListener('click', close);
+        document.getElementById('comparaTrocar').addEventListener('click', reset);
+        modal.addEventListener('click', e => { if (e.target === modal) close(); });
+        document.querySelectorAll('.compara-pick').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const pid = btn.dataset.pid, src = btn.dataset.src;
+            const idx = picked.findIndex(p => p.id === pid);
+            if (idx >= 0) {
+              picked.splice(idx, 1);
+              btn.style.borderColor='transparent';
+              btn.querySelector('.compara-tag').style.display='none';
+            } else if (picked.length < 2) {
+              picked.push({id:pid, src:src});
+              const isFirst = picked.length === 1;
+              btn.style.borderColor = isFirst ? '#888' : 'var(--primary)';
+              const tag = btn.querySelector('.compara-tag');
+              tag.textContent = isFirst ? 'ANTES' : 'DEPOIS';
+              tag.style.background = isFirst ? '#888' : 'var(--primary)';
+              tag.style.color = '#fff';
+              tag.style.display = '';
+            }
+            render();
+          });
+        });
+        window.addEventListener('vsteam-compare-pick', (e) => {
+          open();
+          const btn = document.querySelector('.compara-pick[data-pid="' + e.detail + '"]');
+          if (btn) btn.click();
+        });
+      })();
+      </script>
+    <% } %>
 
   </main>
 </div>
