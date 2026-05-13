@@ -13,16 +13,13 @@
     <div class="card">
       <h3>+ Enviar foto</h3>
       <form action="/cliente/fotos" method="POST" enctype="multipart/form-data">
-        <div class="form-grid">
-          <div class="form-row">
-            <label>Categoria</label>
-            <select name="category">
-              <option value="antes">Antes (início)</option>
-              <option value="semanal" selected>Semanal (atual)</option>
-              <option value="depois">Depois (comparativa)</option>
-            </select>
-          </div>
-          <div class="form-row"><label>Semana</label><input type="number" name="week_number" placeholder="Ex: 4"></div>
+        <div class="form-row">
+          <label>Categoria</label>
+          <select name="category">
+            <option value="antes">Antes (início)</option>
+            <option value="semanal" selected>Atualização</option>
+            <option value="depois">Depois (comparativa)</option>
+          </select>
         </div>
         <div class="form-row"><label>Foto</label><input type="file" name="photo" accept="image/*" required></div>
         <div class="form-row"><label>Legenda (opcional)</label><input type="text" name="caption" placeholder="Ex: frente, costas, lateral"></div>
@@ -51,7 +48,7 @@
         <% semanais.forEach(function(p){ %>
           <div class="photo-item">
             <img src="/uploads/<%= p.filename %>" alt="">
-            <div class="caption"><span>S<%= p.week_number || '?' %> <%= p.caption || '' %></span><span><%= p.taken_at.slice(0,10) %></span></div>
+            <div class="caption"><span><%= p.caption || '' %></span><span><%= p.taken_at.slice(0,10) %></span></div>
           </div>
         <% }); %>
       </div>

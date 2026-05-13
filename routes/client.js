@@ -134,9 +134,12 @@ router.get('/fotos', (req, res) => {
 
 router.post('/fotos', upload.single('photo'), (req, res) => {
   if (!req.file) { req.flash('error', 'Selecione uma foto.'); return res.redirect('/cliente/fotos'); }
-  const { category, week_number, caption } = req.body;
+  const { category, caption } = req.body;
+  // Semana é calculada automaticamente a partir da current_week do cliente
+  const cli = db.prepare('SELECT current_week FROM clients WHERE id = ?').get(req.clientId);
+  const week = cli ? cli.current_week : 1;
   db.prepare(`INSERT INTO photos (client_id, category, filename, week_number, caption) VALUES (?, ?, ?, ?, ?)`)
-    .run(req.clientId, category || 'semanal', req.file.filename, week_number || null, caption || null);
+    .run(req.clientId, category || 'semanal', req.file.filename, week, caption || null);
   // +30 pontos
   db.prepare(`INSERT INTO gym_cats_events (client_id, action, points) VALUES (?, 'Foto semanal enviada', 30)`).run(req.clientId);
   db.prepare(`UPDATE clients SET gym_cats_points = gym_cats_points + 30 WHERE id = ?`).run(req.clientId);
