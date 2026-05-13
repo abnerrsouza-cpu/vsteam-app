@@ -151,7 +151,26 @@
           <div class="card">
             <h3>Login do cliente</h3>
             <p class="fs-sm text-muted">Acesso pelo email: <strong><%= cliente.email %></strong></p>
-            <p class="fs-sm text-muted">Para redefinir senha, pede pro cliente trocar no perfil dele ou apague e recadastre.</p>
+            <p class="fs-sm text-muted" style="margin-bottom:14px">As senhas são armazenadas criptografadas — não dá pra "ver" a senha atual. Mas você pode definir uma nova quando o aluno esquecer:</p>
+            <form action="/admin/clientes/<%= cliente.id %>/reset-senha" method="POST" data-confirm="Redefinir senha deste aluno? A nova senha aparecerá uma vez na tela.">
+              <div class="form-row">
+                <label>Nova senha (mínimo 6 caracteres)</label>
+                <div class="flex-gap gap-1">
+                  <input type="text" name="password" id="newPwInput" minlength="6" required placeholder="Digite ou clique em Gerar" style="flex:1">
+                  <button type="button" class="btn btn-sm btn-outline" id="genPwBtn">🎲 Gerar</button>
+                </div>
+                <small class="text-muted fs-sm">Sugira ao aluno trocar depois no perfil dele.</small>
+              </div>
+              <button type="submit" class="btn btn-block" style="background:var(--warning);color:#000">Resetar senha do aluno</button>
+            </form>
+            <script>
+              document.getElementById('genPwBtn')?.addEventListener('click', () => {
+                const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
+                let pw = '';
+                for (let i = 0; i < 10; i++) pw += chars[Math.floor(Math.random() * chars.length)];
+                document.getElementById('newPwInput').value = pw;
+              });
+            </script>
           </div>
 
           <% if (cliente.status === 'implementacao') { %>

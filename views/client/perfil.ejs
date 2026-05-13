@@ -39,6 +39,29 @@
         <div><span class="text-muted fs-sm">Pontos Gym Cats:</span><br><strong style="color:var(--accent)"><%= cliente.gym_cats_points %> pts</strong></div>
       </div>
     </div>
+    <div class="card" style="max-width:600px; border-left:3px solid var(--primary)">
+      <h3>🔐 Trocar minha senha</h3>
+      <p class="fs-sm text-muted">Pra sua segurança, sempre troque a senha quando o Victor te enviar uma temporária.</p>
+      <form action="/cliente/senha" method="POST">
+        <div class="form-row">
+          <label>Senha atual *</label>
+          <input type="password" name="current_password" required>
+        </div>
+        <div class="form-grid">
+          <div class="form-row">
+            <label>Nova senha *</label>
+            <input type="password" name="new_password" minlength="6" required>
+            <small class="text-muted fs-sm">Mínimo 6 caracteres.</small>
+          </div>
+          <div class="form-row">
+            <label>Confirmar nova senha *</label>
+            <input type="password" name="new_password_confirm" minlength="6" required>
+          </div>
+        </div>
+        <button class="btn" type="submit">Trocar senha</button>
+      </form>
+    </div>
+
   </main>
 </div>
 <%- include('../partials/foot') %>

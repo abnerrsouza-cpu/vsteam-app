@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const bcrypt = require('bcryptjs');
 const db = require('../database');
 
 const router = express.Router();
@@ -424,6 +425,33 @@ router.post('/treinar/finalizar', (req, res) => {
 
   req.flash('success', 'Treino registrado! +25 pts Gym Cats.');
   res.redirect('/cliente/treinar');
+});
+
+
+// Cliente trocar a própria senha
+router.post('/senha', (req, res) => {
+  const { current_password, new_password, new_password_confirm } = req.body;
+  if (!current_password || !new_password) {
+    req.flash('error', 'Preencha todos os campos.');
+    return res.redirect('/cliente/perfil');
+  }
+  if (new_password.length < 6) {
+    req.flash('error', 'A nova senha precisa ter pelo menos 6 caracteres.');
+    return res.redirect('/cliente/perfil');
+  }
+  if (new_password !== new_password_confirm) {
+    req.flash('error', 'A confirmação não bate com a nova senha.');
+    return res.redirect('/cliente/perfil');
+  }
+  const user = db.prepare('SELECT password_hash FROM users WHERE id = ?').get(req.session.user.id);
+  if (!user || !bcrypt.compareSync(current_password, user.password_hash)) {
+    req.flash('error', 'Senha atual incorreta.');
+    return res.redirect('/cliente/perfil');
+  }
+  const hash = bcrypt.hashSync(new_password, 10);
+  db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, req.session.user.id);
+  req.flash('success', '🔐 Senha alterada com sucesso!');
+  res.redirect('/cliente/perfil');
 });
 
 module.exports = router;

@@ -1225,4 +1225,24 @@ router.post('/dietas/:dietId/duplicar', (req, res) => {
   res.redirect(`/admin/clientes/${target.id}#dieta`);
 });
 
+
+// Resetar senha do aluno (define uma nova senha conhecida pelo admin)
+router.post('/clientes/:id/reset-senha', (req, res) => {
+  let { password } = req.body;
+  password = (password || '').trim();
+  if (password.length < 6) {
+    req.flash('error', 'A senha precisa ter pelo menos 6 caracteres.');
+    return res.redirect(`/admin/clientes/${req.params.id}`);
+  }
+  const cliente = db.prepare('SELECT user_id FROM clients WHERE id = ?').get(req.params.id);
+  if (!cliente) {
+    req.flash('error', 'Aluno não encontrado.');
+    return res.redirect('/admin/clientes');
+  }
+  const hash = bcrypt.hashSync(password, 10);
+  db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, cliente.user_id);
+  req.flash('success', '🔑 Senha redefinida! Nova senha: ' + password + ' — compartilhe com o aluno pelo WhatsApp. Recomende que ele troque depois no perfil dele.');
+  res.redirect(`/admin/clientes/${req.params.id}`);
+});
+
 module.exports = router;
