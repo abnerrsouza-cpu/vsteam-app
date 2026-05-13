@@ -387,7 +387,37 @@ router.get('/clientes', (req, res) => {
     FROM clients c JOIN users u ON u.id = c.user_id
     ORDER BY u.name ASC
   `).all();
-  res.render('admin/clientes', { title: 'Clientes — VS TEAM', clientes });
+
+  // KPIs
+  const kpis = {
+    ativos: db.prepare("SELECT COUNT(*) c FROM clients WHERE status = 'ativo'").get().c,
+    implementacao: db.prepare("SELECT COUNT(*) c FROM clients WHERE status = 'implementacao'").get().c,
+    pendentes_pro: db.prepare(`
+      SELECT COUNT(*) c FROM clients
+      WHERE status = 'ativo'
+        AND id NOT IN (
+          SELECT DISTINCT client_id FROM feedbacks
+          WHERE sent_at >= date('now','-7 days')
+        )
+    `).get().c,
+    esqueceram: db.prepare(`
+      SELECT COUNT(*) c FROM clients
+      WHERE status = 'ativo'
+        AND id NOT IN (
+          SELECT DISTINCT client_id FROM evaluations
+          WHERE submitted_at >= date('now','-7 days')
+        )
+    `).get().c,
+    vencidos: db.prepare(`
+      SELECT COUNT(*) c FROM clients
+      WHERE end_date IS NOT NULL
+        AND date(end_date) < date('now')
+        AND status IN ('ativo','implementacao')
+    `).get().c,
+    inativos: db.prepare("SELECT COUNT(*) c FROM clients WHERE status IN ('pausado','encerrado')").get().c
+  };
+
+  res.render('admin/clientes', { title: 'Alunos — VS TEAM', clientes, kpis });
 });
 
 router.get('/clientes/novo', (req, res) => {

@@ -4,7 +4,7 @@
   <main class="main">
     <div class="topbar">
       <div>
-        <h1>Todos os Alunos</h1>
+        <h1>Alunos</h1>
         <p class="text-muted mb-0"><%= clientes.length %> aluno<%= clientes.length === 1 ? '' : 's' %> cadastrado<%= clientes.length === 1 ? '' : 's' %>.</p>
       </div>
       <a href="/admin/clientes/novo" class="btn">+ Novo Aluno</a>
@@ -21,20 +21,51 @@
         </div>
       </div>
     <% } else { %>
+
+      <!-- KPIs clicáveis -->
+      <div class="aluno-kpis">
+        <button type="button" class="kpi-card kpi-success" data-status="ativo">
+          <div class="kpi-label">Alunos ativos</div>
+          <div class="kpi-value"><%= (locals.kpis||{}).ativos || 0 %></div>
+        </button>
+        <button type="button" class="kpi-card kpi-warning" data-status="pendentes_pro">
+          <div class="kpi-label">Pendentes de atualização pelo profissional</div>
+          <div class="kpi-value"><%= (locals.kpis||{}).pendentes_pro || 0 %></div>
+        </button>
+        <button type="button" class="kpi-card kpi-accent" data-status="esqueceram">
+          <div class="kpi-label">Alunos que esqueceram de atualizar</div>
+          <div class="kpi-value"><%= (locals.kpis||{}).esqueceram || 0 %></div>
+        </button>
+        <button type="button" class="kpi-card kpi-danger" data-status="vencidos">
+          <div class="kpi-label">Planos vencidos</div>
+          <div class="kpi-value"><%= (locals.kpis||{}).vencidos || 0 %></div>
+        </button>
+        <button type="button" class="kpi-card kpi-info" data-status="implementacao">
+          <div class="kpi-label">Em implementação</div>
+          <div class="kpi-value"><%= (locals.kpis||{}).implementacao || 0 %></div>
+        </button>
+        <button type="button" class="kpi-card kpi-muted" data-status="inativo">
+          <div class="kpi-label">Alunos inativos</div>
+          <div class="kpi-value"><%= (locals.kpis||{}).inativos || 0 %></div>
+        </button>
+      </div>
+
       <div class="list-toolbar">
         <div class="search-box">
           <input type="text" placeholder="Buscar por nome, email, plano..." data-search-target=".aluno-row">
         </div>
-        <select data-filter-target=".aluno-row">
+        <select data-filter-target=".aluno-row" id="filterStatus">
           <option value="">Todos os status</option>
-          <option value="ativo">Ativos</option>
+          <option value="ativo">Só ativos</option>
           <option value="implementacao">Em implementação</option>
           <option value="pausado">Pausados</option>
           <option value="encerrado">Encerrados</option>
+          <option value="em_atividade">Em atividade (ativo + implementação)</option>
+          <option value="inativo">Inativos (pausado + encerrado)</option>
         </select>
         <div class="view-toggle">
-          <button data-view="cards" class="active">Cards</button>
-          <button data-view="list">Lista</button>
+          <button data-view="list" class="active">Lista</button>
+          <button data-view="kanban">Kanban</button>
         </div>
       </div>
 
@@ -45,31 +76,8 @@
         </div>
 
         <div data-view-wrap>
-          <div class="cards-view active grid grid-auto" style="gap:14px">
-            <% clientes.forEach(function(c){ %>
-              <div class="aluno-row client-card" data-filter="<%= c.status %>"
-                   data-search-text="<%= c.name %> <%= c.email %> <%= c.plan || '' %> <%= c.phone || '' %> <%= c.instagram || '' %>"
-                   style="position:relative">
-                <input type="checkbox" name="ids" value="<%= c.id %>"
-                       style="position:absolute;top:14px;right:14px;width:18px;height:18px;cursor:pointer;z-index:2"
-                       onclick="event.stopPropagation()">
-                <a href="/admin/clientes/<%= c.id %>" style="display:block;text-decoration:none;color:inherit">
-                  <div class="ava"><%= c.name.charAt(0).toUpperCase() %></div>
-                  <div class="name"><%= c.name %></div>
-                  <div class="sub"><%= c.email %></div>
-                  <div class="flex-gap gap-1 mb-2" style="flex-wrap:wrap">
-                    <span class="badge <%= c.status === 'ativo' ? 'badge-success' : (c.status === 'implementacao' ? 'badge-info' : 'badge-outline') %>"><%= c.status %></span>
-                    <% if (c.plan) { %><span class="badge badge-outline"><%= c.plan %></span><% } %>
-                  </div>
-                  <div class="meta"><span class="k">Semana</span><span class="v"><%= c.current_week %></span></div>
-                  <div class="meta"><span class="k">Gym Cats</span><span class="v" style="color:var(--accent)"><%= c.gym_cats_points %> pts</span></div>
-                  <div class="meta" style="border:0"><span class="k">Contato</span><span class="v"><%= c.phone || c.instagram || '—' %></span></div>
-                </a>
-              </div>
-            <% }); %>
-          </div>
-
-          <div class="list-view">
+          <!-- LISTA (TABELA) -->
+          <div class="list-view active">
             <div class="list-view-row" style="background:var(--bg-soft);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);font-weight:700;cursor:default">
               <input type="checkbox" data-check-all style="width:16px;height:16px">
               <span></span>
@@ -77,8 +85,10 @@
               <span>Plano</span>
               <span>Status</span>
             </div>
-            <% clientes.forEach(function(c){ %>
-              <div class="list-view-row aluno-row" data-filter="<%= c.status %>"
+            <% clientes.forEach(function(c){
+              const grupo = (c.status === 'ativo' || c.status === 'implementacao') ? 'em_atividade' : 'inativo';
+            %>
+              <div class="list-view-row aluno-row" data-filter="<%= c.status %>,<%= grupo %>"
                    data-search-text="<%= c.name %> <%= c.email %> <%= c.plan || '' %>"
                    onclick="if(event.target.tagName !== 'INPUT') location.href='/admin/clientes/<%= c.id %>'">
                 <input type="checkbox" name="ids" value="<%= c.id %>" onclick="event.stopPropagation()">
@@ -92,9 +102,69 @@
               </div>
             <% }); %>
           </div>
+
+          <!-- KANBAN POR STATUS -->
+          <div class="kanban-view">
+            <div class="kanban-board">
+              <% const colunas = [
+                { key: 'ativo', label: 'Ativos', cls: 'badge-success' },
+                { key: 'implementacao', label: 'Em implementação', cls: 'badge-info' },
+                { key: 'pausado', label: 'Pausados', cls: 'badge-warning' },
+                { key: 'encerrado', label: 'Encerrados', cls: 'badge-outline' }
+              ]; %>
+              <% colunas.forEach(function(col){
+                const items = clientes.filter(c => c.status === col.key);
+              %>
+                <div class="kanban-col">
+                  <h3>
+                    <span><%= col.label %></span>
+                    <span class="count"><%= items.length %></span>
+                  </h3>
+                  <% items.forEach(function(c){
+                    const grupo = (c.status === 'ativo' || c.status === 'implementacao') ? 'em_atividade' : 'inativo';
+                  %>
+                    <a href="/admin/clientes/<%= c.id %>" class="kanban-card aluno-row"
+                       data-filter="<%= c.status %>,<%= grupo %>"
+                       data-search-text="<%= c.name %> <%= c.email %> <%= c.plan || '' %>">
+                      <div class="kanban-card-head">
+                        <div class="ava-sm"><%= c.name.charAt(0).toUpperCase() %></div>
+                        <strong><%= c.name %></strong>
+                      </div>
+                      <div class="fs-sm text-muted"><%= c.plan || 'Sem plano' %></div>
+                      <div class="kanban-card-meta">
+                        <span>S<%= c.current_week %></span>
+                        <span style="color:var(--accent)"><%= c.gym_cats_points %> pts</span>
+                      </div>
+                    </a>
+                  <% }); %>
+                  <% if (items.length === 0) { %>
+                    <p class="text-muted fs-sm" style="text-align:center;padding:14px">vazio</p>
+                  <% } %>
+                </div>
+              <% }); %>
+            </div>
+          </div>
         </div>
       </form>
     <% } %>
   </main>
 </div>
+<script>
+// KPI cards clicáveis - filtram a lista
+document.querySelectorAll('.kpi-card[data-status]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const v = btn.dataset.status;
+    const sel = document.getElementById('filterStatus');
+    if (sel) {
+      // Mapeia KPIs especiais pra filtros lógicos
+      let target = v;
+      if (v === 'pendentes_pro' || v === 'esqueceram' || v === 'vencidos') target = 'ativo';
+      sel.value = target;
+      sel.dispatchEvent(new Event('change'));
+    }
+    document.querySelectorAll('.kpi-card').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+  });
+});
+</script>
 <%- include('../partials/foot') %>
