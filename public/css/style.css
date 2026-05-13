@@ -1981,3 +1981,22 @@ body.theme-light input, body.theme-light select, body.theme-light textarea { col
 [data-view-wrap] .list-view.active,
 [data-view-wrap] .cards-view.active { display: block; }
 [data-view-wrap] .kanban-view.active { display: block; }
+
+/* Mobile: user-box logo após o último item do menu, não preso no fim do viewport */
+@media (max-width: 900px) {
+  .app .sidebar nav {
+    flex: 0 0 auto;
+    padding-bottom: 8px;
+  }
+  .app .sidebar .user-box {
+    margin-top: 0;
+    border-top: 1px solid var(--border);
+    position: sticky;
+    bottom: 0;
+    background: var(--bg-elev);
+    z-index: 5;
+  }
+  .app .sidebar {
+    padding-bottom: 0;
+  }
+}

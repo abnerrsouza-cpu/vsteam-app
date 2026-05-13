@@ -1196,4 +1196,33 @@ router.post('/treinos/:workoutId/duplicar', (req, res) => {
   res.redirect(`/admin/clientes/${target.id}#treinos`);
 });
 
+
+// Duplicar dieta pra outro aluno
+router.post('/dietas/:dietId/duplicar', (req, res) => {
+  const { target_client_id, week_number } = req.body;
+  const tcid = parseInt(target_client_id);
+  if (!tcid) {
+    req.flash('error', 'Selecione um aluno de destino.');
+    return res.redirect(req.get('Referrer') || '/admin/clientes');
+  }
+  const src = db.prepare('SELECT * FROM diets WHERE id = ?').get(req.params.dietId);
+  if (!src) {
+    req.flash('error', 'Dieta não encontrada.');
+    return res.redirect(req.get('Referrer') || '/admin/clientes');
+  }
+  const target = db.prepare('SELECT id, current_week FROM clients WHERE id = ?').get(tcid);
+  if (!target) {
+    req.flash('error', 'Aluno destino não encontrado.');
+    return res.redirect(req.get('Referrer') || '/admin/clientes');
+  }
+  const week = parseInt(week_number) || target.current_week || 1;
+
+  db.prepare(`INSERT INTO diets (client_id, week_number, meal_plan, calories, protein, carbs, fats, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(target.id, week, src.meal_plan, src.calories, src.protein, src.carbs, src.fats, src.notes);
+
+  const targetUser = db.prepare("SELECT u.name FROM clients c JOIN users u ON u.id = c.user_id WHERE c.id = ?").get(target.id);
+  req.flash('success', `Dieta duplicada para ${targetUser ? targetUser.name : 'aluno'} (semana ${week}).`);
+  res.redirect(`/admin/clientes/${target.id}#dieta`);
+});
+
 module.exports = router;
