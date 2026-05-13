@@ -488,13 +488,22 @@ function seed() {
 }
 
 // Auto-seed: roda automaticamente se o banco estiver vazio (primeira deploy)
-(function autoSeedIfEmpty() {
+(function autoSeedOnce() {
   try {
+    // Só roda o seed UMA VEZ na vida do banco.
+    // Depois disso, nunca mais — mesmo que você apague todos os usuários.
+    // Pra rodar de novo: SQL "DELETE FROM settings WHERE key='auto_seed_done'"
+    db.exec(`CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)`);
+    const already = db.prepare("SELECT value FROM settings WHERE key='auto_seed_done'").get();
+    if (already) return;
+
     const row = db.prepare('SELECT COUNT(*) as c FROM users').get();
     if (row && row.c === 0) {
-      console.log('🌱 Banco vazio detectado, rodando seed automático...');
+      console.log('🌱 Primeiro boot detectado, rodando seed automático (apenas uma vez)...');
       seed();
     }
+    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('auto_seed_done', ?)")
+      .run(new Date().toISOString());
   } catch(e) { console.error('auto-seed:', e.message); }
 })();
 
