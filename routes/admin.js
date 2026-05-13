@@ -458,6 +458,13 @@ router.get('/clientes/:id', (req, res) => {
   const feedbacks = db.prepare(`SELECT * FROM feedbacks WHERE client_id = ? ORDER BY week_number DESC`).all(cliente.id);
 
   // Templates disponíveis pra "Aplicar template"
+  // Lista de outros alunos pra "duplicar treino"
+  const outrosAlunos = db.prepare(`
+    SELECT c.id, u.name FROM clients c JOIN users u ON u.id = c.user_id
+    WHERE c.id != ? AND c.status IN ('ativo','implementacao')
+    ORDER BY u.name ASC
+  `).all(cliente.id);
+
   const treinoTpls = db.prepare(`
     SELECT t.*, (SELECT COUNT(*) FROM workout_template_exercises WHERE template_id = t.id) as ex_count
     FROM workout_templates t ORDER BY t.name ASC
@@ -467,7 +474,7 @@ router.get('/clientes/:id', (req, res) => {
   res.render('admin/cliente-detalhe', {
     title: `${cliente.name} — VS TEAM`,
     cliente, questionnaire, photos, workouts, diets, evals, feedbacks,
-    treinoTpls, dietaTpls
+    treinoTpls, dietaTpls, outrosAlunos
   });
 });
 
@@ -1154,6 +1161,39 @@ router.post('/avaliacao-template/:id/move', (req, res) => {
     db.prepare("UPDATE evaluation_template SET order_idx = ? WHERE id = ?").run(cur.order_idx, neighbor.id);
   }
   res.redirect('/admin/avaliacao-template');
+});
+
+
+// Duplicar treino pra outro aluno
+router.post('/treinos/:workoutId/duplicar', (req, res) => {
+  const { target_client_id, week_number } = req.body;
+  const tcid = parseInt(target_client_id);
+  if (!tcid) {
+    req.flash('error', 'Selecione um aluno de destino.');
+    return res.redirect(req.get('Referrer') || '/admin/clientes');
+  }
+  const src = db.prepare('SELECT * FROM workouts WHERE id = ?').get(req.params.workoutId);
+  if (!src) {
+    req.flash('error', 'Treino não encontrado.');
+    return res.redirect(req.get('Referrer') || '/admin/clientes');
+  }
+  const target = db.prepare('SELECT id, current_week FROM clients WHERE id = ?').get(tcid);
+  if (!target) {
+    req.flash('error', 'Aluno destino não encontrado.');
+    return res.redirect(req.get('Referrer') || '/admin/clientes');
+  }
+  const week = parseInt(week_number) || target.current_week || 1;
+
+  const newId = db.prepare(`INSERT INTO workouts (client_id, week_number, day_label, title, focus, notes) VALUES (?, ?, ?, ?, ?, ?)`)
+    .run(target.id, week, src.day_label, src.title, src.focus, src.notes).lastInsertRowid;
+
+  const exs = db.prepare('SELECT * FROM exercises WHERE workout_id = ? ORDER BY order_idx').all(src.id);
+  const stmt = db.prepare(`INSERT INTO exercises (workout_id, library_id, name, sets, reps, rest, load_kg, video_url, notes, order_idx) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+  exs.forEach(e => stmt.run(newId, e.library_id, e.name, e.sets, e.reps, e.rest, e.load_kg, e.video_url, e.notes, e.order_idx));
+
+  const targetUser = db.prepare("SELECT u.name FROM clients c JOIN users u ON u.id = c.user_id WHERE c.id = ?").get(target.id);
+  req.flash('success', `Treino duplicado para ${targetUser ? targetUser.name : 'aluno'}: ${exs.length} exercícios copiados (semana ${week}).`);
+  res.redirect(`/admin/clientes/${target.id}#treinos`);
 });
 
 module.exports = router;
