@@ -39,7 +39,11 @@
                   <span class="chip" style="background:<%= statusColor %>;color:#fff;font-size:11px;padding:2px 8px;border-radius:6px"><%= statusLabel %></span>
                 </div>
                 <div class="fs-sm text-muted" style="margin-top:4px">
-                  📅 <%= c.scheduled_for %> · 👥 <%= c.total_recipients %> aluno(s)
+                  <%= describeSchedule(c) %>
+                  <% if (c.recurrence_type && c.recurrence_type !== 'once') { %>
+                    · próximo: <%= c.scheduled_for %>
+                  <% } %>
+                  · 👥 <%= c.total_recipients %> aluno(s)
                   <% if (c.template_name) { %> · Template: <em><%= c.template_name %></em><% } %>
                 </div>
                 <div style="margin-top:8px;padding:8px;background:var(--bg-soft);border-radius:6px">
@@ -175,18 +179,71 @@
             </small>
           </div>
 
-          <div class="form-grid">
-            <div class="form-row">
-              <label>Ao clicar, levar para</label>
-              <select name="redirect_to" id="campRedirect">
-                <% DESTINOS.forEach(function(d){ %><option value="<%= d.value %>"><%= d.label %></option><% }); %>
-              </select>
-            </div>
+          <div class="form-row">
+            <label>Ao clicar, levar para</label>
+            <select name="redirect_to" id="campRedirect">
+              <% DESTINOS.forEach(function(d){ %><option value="<%= d.value %>"><%= d.label %></option><% }); %>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <label>Frequência *</label>
+            <select name="recurrence_type" id="recurType">
+              <option value="once">📅 Disparo único (data e hora específica)</option>
+              <option value="daily">🔁 Diariamente</option>
+              <option value="weekly">🔁 Semanalmente (toda quarta, toda segunda…)</option>
+              <option value="monthly">🔁 Mensalmente (todo dia X do mês)</option>
+            </select>
+          </div>
+
+          <!-- ONCE: data + hora específicas -->
+          <div class="recur-block" data-show="once">
             <div class="form-row">
               <label>Data e hora do disparo *</label>
-              <input type="datetime-local" name="scheduled_for" id="schedField" required>
+              <input type="datetime-local" name="scheduled_for" id="schedField">
               <small class="text-muted">Deixe agora pra disparar imediatamente.</small>
             </div>
+          </div>
+
+          <!-- DAILY: só hora -->
+          <div class="recur-block" data-show="daily" style="display:none">
+            <div class="form-row">
+              <label>Horário de envio (todo dia) *</label>
+              <input type="time" name="recurrence_time" class="recur-time" value="09:00">
+              <small class="text-muted">Toda a base recebe automaticamente nesse horário.</small>
+            </div>
+          </div>
+
+          <!-- WEEKLY: dia da semana + hora -->
+          <div class="recur-block" data-show="weekly" style="display:none">
+            <div class="form-grid">
+              <div class="form-row">
+                <label>Dia da semana *</label>
+                <select name="recurrence_day_weekly">
+                  <% DIAS_SEMANA.forEach(function(d){ %><option value="<%= d.value %>" <%= d.value === 3 ? 'selected' : '' %>><%= d.label %></option><% }); %>
+                </select>
+              </div>
+              <div class="form-row">
+                <label>Horário *</label>
+                <input type="time" name="recurrence_time" class="recur-time" value="09:00">
+              </div>
+            </div>
+            <small class="text-muted">Exemplo: "Toda quarta-feira às 09:00".</small>
+          </div>
+
+          <!-- MONTHLY: dia do mês + hora -->
+          <div class="recur-block" data-show="monthly" style="display:none">
+            <div class="form-grid">
+              <div class="form-row">
+                <label>Dia do mês * (1-28)</label>
+                <input type="number" name="recurrence_day_monthly" min="1" max="28" value="1">
+              </div>
+              <div class="form-row">
+                <label>Horário *</label>
+                <input type="time" name="recurrence_time" class="recur-time" value="09:00">
+              </div>
+            </div>
+            <small class="text-muted">Limitamos a dia 28 pra cobrir todos os meses (incluindo fevereiro).</small>
           </div>
 
           <div class="form-row">
@@ -254,6 +311,30 @@
     var d = new Date(Date.now() + 5*60*1000);
     var pad = function(n){ return String(n).padStart(2,'0'); };
     sched.value = d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
+  }
+
+  // Toggle de frequência: mostra só o bloco do tipo selecionado e ajusta required
+  var recurType = document.getElementById('recurType');
+  var blocks = document.querySelectorAll('.recur-block');
+  function applyRecurrence() {
+    var t = recurType.value;
+    blocks.forEach(function(b){
+      var show = b.getAttribute('data-show') === t;
+      b.style.display = show ? '' : 'none';
+      // habilita/desabilita inputs do bloco escondido pra não exigir/submeter valores fantasma
+      b.querySelectorAll('input, select').forEach(function(inp){
+        inp.disabled = !show;
+      });
+    });
+    if (sched) sched.required = (t === 'once');
+    // ajusta required do input de hora ativo
+    document.querySelectorAll('.recur-time').forEach(function(tm){
+      tm.required = (t !== 'once' && tm.closest('.recur-block').getAttribute('data-show') === t);
+    });
+  }
+  if (recurType) {
+    recurType.addEventListener('change', applyRecurrence);
+    applyRecurrence();
   }
 
   // "Todos os ativos" desmarca lista manual

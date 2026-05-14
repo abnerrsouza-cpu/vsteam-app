@@ -22,6 +22,16 @@ const VARIAVEIS_DOC = [
   { token: '{dia_semana}',    desc: 'Dia da semana (segunda, terça…)' },
 ];
 
+const DIAS_SEMANA = [
+  { value: 0, label: 'Domingo' },
+  { value: 1, label: 'Segunda-feira' },
+  { value: 2, label: 'Terça-feira' },
+  { value: 3, label: 'Quarta-feira' },
+  { value: 4, label: 'Quinta-feira' },
+  { value: 5, label: 'Sexta-feira' },
+  { value: 6, label: 'Sábado' },
+];
+
 function firstName(full) {
   return (full || '').trim().split(/\s+/)[0] || '';
 }
@@ -46,8 +56,65 @@ function renderTemplate(str, client) {
     .replace(/\{dia\}/g, dia);
 }
 
+// Formata Date -> "YYYY-MM-DD HH:MM:SS" (local time)
+function fmtDb(d) {
+  const pad = n => String(n).padStart(2,'0');
+  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '
+       + pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
+}
+
+// Calcula a próxima data/hora pra uma campanha recorrente.
+// Sempre retorna um instante NO FUTURO em relação a "now".
+function computeNextRun(camp, now) {
+  now = now || new Date();
+  const [hh, mm] = String(camp.recurrence_time || '09:00').split(':').map(x => parseInt(x) || 0);
+
+  if (camp.recurrence_type === 'daily') {
+    const next = new Date(now);
+    next.setHours(hh, mm, 0, 0);
+    if (next <= now) next.setDate(next.getDate() + 1);
+    return fmtDb(next);
+  }
+
+  if (camp.recurrence_type === 'weekly') {
+    const targetDow = parseInt(camp.recurrence_day);
+    const next = new Date(now);
+    next.setHours(hh, mm, 0, 0);
+    let diff = (targetDow - next.getDay() + 7) % 7;
+    if (diff === 0 && next <= now) diff = 7;
+    next.setDate(next.getDate() + diff);
+    return fmtDb(next);
+  }
+
+  if (camp.recurrence_type === 'monthly') {
+    const targetDom = Math.max(1, Math.min(28, parseInt(camp.recurrence_day) || 1));
+    const next = new Date(now);
+    next.setDate(targetDom);
+    next.setHours(hh, mm, 0, 0);
+    if (next <= now) {
+      next.setMonth(next.getMonth() + 1);
+      next.setDate(targetDom);
+    }
+    return fmtDb(next);
+  }
+
+  return null;
+}
+
+// Descrição humana da recorrência (pra mostrar na lista de campanhas)
+function describeSchedule(camp) {
+  const t = camp.recurrence_time || '09:00';
+  if (camp.recurrence_type === 'daily')   return `🔁 Diariamente às ${t}`;
+  if (camp.recurrence_type === 'weekly')  {
+    const d = DIAS_SEMANA.find(x => x.value === camp.recurrence_day);
+    return `🔁 Toda ${d ? d.label.toLowerCase() : '?'} às ${t}`;
+  }
+  if (camp.recurrence_type === 'monthly') return `🔁 Todo dia ${camp.recurrence_day} às ${t}`;
+  return `📅 ${camp.scheduled_for}`;
+}
+
 // Processa todas as campanhas pendentes cujo scheduled_for já passou.
-// Idempotente: usa transação por campanha e marca como 'sent' ao final.
+// Para campanhas 'once' → marca como sent. Para recorrentes → recalcula próxima data.
 function processPendingCampaigns() {
   try {
     const pendentes = db.prepare(`
@@ -71,9 +138,13 @@ function processPendingCampaigns() {
     const markSent = db.prepare(`
       UPDATE notification_campaigns SET status='sent', sent_at=datetime('now') WHERE id=?
     `);
+    const rescheduleRecurring = db.prepare(`
+      UPDATE notification_campaigns SET scheduled_for=?, sent_at=datetime('now') WHERE id=?
+    `);
 
     let total = 0;
     for (const camp of pendentes) {
+      const isRecurring = camp.recurrence_type && camp.recurrence_type !== 'once';
       const tx = db.transaction((c) => {
         const recipients = getRecipients.all(c.id);
         for (const r of recipients) {
@@ -82,10 +153,19 @@ function processPendingCampaigns() {
           insertNotif.run(r.client_id, c.id, t, b, c.redirect_to || '/cliente');
           total++;
         }
-        markSent.run(c.id);
+        if (isRecurring) {
+          const next = computeNextRun(c);
+          rescheduleRecurring.run(next, c.id);
+        } else {
+          markSent.run(c.id);
+        }
       });
       tx(camp);
-      console.log(`📨 Disparo "${camp.name}" enviado para ${camp.total_recipients} aluno(s).`);
+      if (isRecurring) {
+        console.log(`🔁 Disparo recorrente "${camp.name}" enviado pra ${camp.total_recipients} aluno(s). Próximo: ${computeNextRun(camp)}`);
+      } else {
+        console.log(`📨 Disparo "${camp.name}" enviado pra ${camp.total_recipients} aluno(s).`);
+      }
     }
     return total;
   } catch(e) {
@@ -104,7 +184,10 @@ function unreadCount(clientId) {
 module.exports = {
   DESTINOS,
   VARIAVEIS_DOC,
+  DIAS_SEMANA,
   renderTemplate,
   processPendingCampaigns,
+  computeNextRun,
+  describeSchedule,
   unreadCount,
 };

@@ -868,6 +868,38 @@ CREATE TABLE IF NOT EXISTS questionnaire_template (
 
 
 // Auto-migração: biblioteca completa (202 exercícios)
+// Auto-migração: catálogo de Planos
+(function ensurePlans() {
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS plans (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT UNIQUE NOT NULL,
+        description TEXT,
+        value REAL DEFAULT 0,
+        duration TEXT,
+        active INTEGER DEFAULT 1,
+        order_idx INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT (datetime('now'))
+      );
+    `);
+    // Seed inicial: se a tabela está vazia, popula com os 3 planos já usados nos dados
+    const count = db.prepare('SELECT COUNT(*) as c FROM plans').get().c;
+    if (count === 0) {
+      const ins = db.prepare(`INSERT INTO plans (name, description, value, duration, order_idx) VALUES (?, ?, ?, ?, ?)`);
+      ins.run('Consultoria Start',
+        'Acompanhamento essencial:\n- 1 treino completo\n- 1 dieta inicial\n- Suporte por WhatsApp',
+        397.00, '1 mês', 0);
+      ins.run('Consultoria VIP',
+        'Acompanhamento completo:\n- Treino + dieta atualizados quinzenalmente\n- Avaliação semanal\n- Suporte prioritário no WhatsApp\n- Acesso ao Gym Cats',
+        897.00, '3 meses', 1);
+      ins.run('Consultoria Premium',
+        'Acompanhamento premium:\n- Treino + dieta atualizados semanalmente\n- Avaliação semanal com feedback em vídeo\n- Suporte 1-on-1 ilimitado\n- Avaliação física presencial\n- Acesso completo a todos os recursos',
+        1497.00, '6 meses', 2);
+    }
+  } catch(e) { console.error('migrate plans:', e.message); }
+})();
+
 // Auto-migração: sistema de notificações (Disparos / Urgentes)
 (function ensureNotifications() {
   try {
@@ -921,6 +953,11 @@ CREATE TABLE IF NOT EXISTS questionnaire_template (
       CREATE INDEX IF NOT EXISTS idx_notifications_client_read ON notifications(client_id, read_at);
       CREATE INDEX IF NOT EXISTS idx_campaigns_status_when ON notification_campaigns(status, scheduled_for);
     `);
+    // Colunas de recorrência (migração incremental — adiciona se ainda não existir)
+    const cols = db.prepare(`PRAGMA table_info(notification_campaigns)`).all().map(c => c.name);
+    if (!cols.includes('recurrence_type')) db.exec(`ALTER TABLE notification_campaigns ADD COLUMN recurrence_type TEXT DEFAULT 'once'`);
+    if (!cols.includes('recurrence_day'))  db.exec(`ALTER TABLE notification_campaigns ADD COLUMN recurrence_day INTEGER`);
+    if (!cols.includes('recurrence_time')) db.exec(`ALTER TABLE notification_campaigns ADD COLUMN recurrence_time TEXT`);
   } catch(e) { console.error('migrate notifications:', e.message); }
 })();
 

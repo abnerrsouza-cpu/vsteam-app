@@ -4,7 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const db = require('../database');
-const { DESTINOS, VARIAVEIS_DOC, processPendingCampaigns } = require('../helpers/notifications');
+const { DESTINOS, VARIAVEIS_DOC, DIAS_SEMANA, processPendingCampaigns, computeNextRun, describeSchedule } = require('../helpers/notifications');
 
 const router = express.Router();
 
@@ -1280,7 +1280,7 @@ router.get('/disparos', (req, res) => {
   res.render('admin/disparos', {
     title: 'Disparos — VS TEAM',
     templates, campaigns, clientes, leituras,
-    DESTINOS, VARIAVEIS_DOC,
+    DESTINOS, VARIAVEIS_DOC, DIAS_SEMANA, describeSchedule,
   });
 });
 
@@ -1311,15 +1311,52 @@ router.post('/disparos/templates/:id/delete', (req, res) => {
 });
 
 router.post('/disparos/campanhas', (req, res) => {
-  let { name, template_id, title, body, redirect_to, scheduled_for, client_ids, select_all } = req.body;
-  if (!name || !title || !body || !scheduled_for) {
-    req.flash('error', 'Preencha nome, mensagem e data/hora do disparo.');
+  let {
+    name, template_id, title, body, redirect_to,
+    recurrence_type, scheduled_for,
+    recurrence_day_weekly, recurrence_day_monthly, recurrence_time,
+    client_ids, select_all
+  } = req.body;
+
+  if (!name || !title || !body) {
+    req.flash('error', 'Preencha nome, título e mensagem do disparo.');
     return res.redirect('/admin/disparos');
   }
 
-  // Normaliza datetime-local (yyyy-mm-ddTHH:MM) -> "yyyy-mm-dd HH:MM:00"
-  let when = String(scheduled_for).replace('T', ' ');
-  if (when.length === 16) when += ':00';
+  recurrence_type = recurrence_type || 'once';
+  let when = null;
+  let recurDay = null;
+  let recurTime = null;
+
+  if (recurrence_type === 'once') {
+    if (!scheduled_for) {
+      req.flash('error', 'Defina a data e hora do disparo.');
+      return res.redirect('/admin/disparos');
+    }
+    when = String(scheduled_for).replace('T', ' ');
+    if (when.length === 16) when += ':00';
+  } else {
+    if (!recurrence_time) {
+      req.flash('error', 'Defina o horário da recorrência.');
+      return res.redirect('/admin/disparos');
+    }
+    recurTime = recurrence_time;
+    if (recurrence_type === 'weekly') {
+      recurDay = parseInt(recurrence_day_weekly);
+      if (isNaN(recurDay) || recurDay < 0 || recurDay > 6) {
+        req.flash('error', 'Escolha o dia da semana.');
+        return res.redirect('/admin/disparos');
+      }
+    } else if (recurrence_type === 'monthly') {
+      recurDay = parseInt(recurrence_day_monthly);
+      if (isNaN(recurDay) || recurDay < 1 || recurDay > 28) {
+        req.flash('error', 'Escolha o dia do mês (1 a 28).');
+        return res.redirect('/admin/disparos');
+      }
+    }
+    // Calcula próxima execução
+    when = computeNextRun({ recurrence_type, recurrence_day: recurDay, recurrence_time: recurTime });
+  }
 
   // Resolve destinatários
   let recipientIds = [];
@@ -1339,8 +1376,10 @@ router.post('/disparos/campanhas', (req, res) => {
   const tx = db.transaction(() => {
     const info = db.prepare(`
       INSERT INTO notification_campaigns
-        (name, template_id, title_snapshot, body_snapshot, redirect_to, scheduled_for, total_recipients, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
+        (name, template_id, title_snapshot, body_snapshot, redirect_to,
+         scheduled_for, total_recipients, status,
+         recurrence_type, recurrence_day, recurrence_time)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
     `).run(
       name.trim(),
       template_id ? parseInt(template_id) : null,
@@ -1348,17 +1387,22 @@ router.post('/disparos/campanhas', (req, res) => {
       body.trim(),
       redirect_to || '/cliente',
       when,
-      recipientIds.length
+      recipientIds.length,
+      recurrence_type,
+      recurDay,
+      recurTime
     );
     const ins = db.prepare(`INSERT OR IGNORE INTO notification_campaign_recipients (campaign_id, client_id) VALUES (?, ?)`);
     recipientIds.forEach(cid => ins.run(info.lastInsertRowid, cid));
   });
   tx();
 
-  // Se a data já passou (disparo "imediato" — ex.: usuário escolheu agora), processa já.
   processPendingCampaigns();
 
-  req.flash('success', `🚀 Disparo "${name}" agendado para ${recipientIds.length} aluno(s).`);
+  const msg = recurrence_type === 'once'
+    ? `🚀 Disparo "${name}" agendado para ${recipientIds.length} aluno(s).`
+    : `🔁 Disparo recorrente "${name}" criado para ${recipientIds.length} aluno(s). Próximo envio: ${when}`;
+  req.flash('success', msg);
   res.redirect('/admin/disparos');
 });
 
