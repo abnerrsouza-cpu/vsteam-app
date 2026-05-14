@@ -472,10 +472,27 @@ router.get('/clientes/:id', (req, res) => {
   `).all();
   const dietaTpls = db.prepare(`SELECT * FROM diet_templates ORDER BY name ASC`).all();
 
+  // Biblioteca completa pra "Importar da Biblioteca"
+  const bibliotecaTodos = db.prepare(`SELECT id, name, muscle_group, equipment, video_url FROM exercise_library ORDER BY muscle_group, name`).all();
+
+  // Outros alunos com seus treinos (apenas metadados, exercícios via AJAX)
+  const outrosClientesTreinos = outrosAlunos.map(a => ({
+    id: a.id,
+    name: a.name,
+    workouts: db.prepare(`
+      SELECT w.id, w.week_number, w.day_label, w.title, w.focus,
+        (SELECT COUNT(*) FROM exercises WHERE workout_id = w.id) as ex_count
+      FROM workouts w
+      WHERE w.client_id = ?
+      ORDER BY w.week_number DESC, w.day_label ASC
+    `).all(a.id)
+  }));
+
   res.render('admin/cliente-detalhe', {
     title: `${cliente.name} — VS TEAM`,
     cliente, questionnaire, photos, workouts, diets, evals, feedbacks,
-    treinoTpls, dietaTpls, outrosAlunos
+    treinoTpls, dietaTpls, outrosAlunos,
+    bibliotecaTodos, outrosClientesTreinos
   });
 });
 
@@ -508,6 +525,76 @@ router.post('/treinos/:workoutId/exercicios', (req, res) => {
     .run(req.params.workoutId, library_id || null, name, sets, reps, rest, load_kg, video_url, notes, order);
   req.flash('success', 'Exercício adicionado.');
   res.redirect(`/admin/clientes/${client_id}#treinos`);
+});
+
+// Importar múltiplos exercícios da Biblioteca pro treino
+router.post('/treinos/:workoutId/importar-biblioteca', (req, res) => {
+  const workoutId = parseInt(req.params.workoutId);
+  const workout = db.prepare('SELECT * FROM workouts WHERE id = ?').get(workoutId);
+  if (!workout) return res.redirect('/admin/clientes');
+
+  let ids = req.body.library_ids || [];
+  if (!Array.isArray(ids)) ids = [ids];
+  ids = ids.map(x => parseInt(x)).filter(x => x > 0);
+
+  if (ids.length === 0) {
+    req.flash('error', 'Selecione pelo menos 1 exercício da biblioteca.');
+    return res.redirect('/admin/clientes/' + (req.body.client_id || workout.client_id));
+  }
+
+  const startRow = db.prepare('SELECT COALESCE(MAX(order_idx), -1) as m FROM exercises WHERE workout_id = ?').get(workoutId);
+  let order = (startRow ? startRow.m : -1) + 1;
+
+  const lib = db.prepare('SELECT * FROM exercise_library WHERE id = ?');
+  const ins = db.prepare(`INSERT INTO exercises (workout_id, library_id, name, sets, reps, rest, load_kg, video_url, notes, order_idx) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+
+  const tx = db.transaction(() => {
+    ids.forEach(libId => {
+      const it = lib.get(libId);
+      if (!it) return;
+      ins.run(workoutId, it.id, it.name, '4', '8-12', '60s', null, it.video_url || null, null, order++);
+    });
+  });
+  tx();
+
+  req.flash('success', `📥 ${ids.length} exercício(s) importado(s) da biblioteca.`);
+  res.redirect('/admin/clientes/' + (req.body.client_id || workout.client_id));
+});
+
+// Importar TODOS os exercícios de um treino de outro aluno
+router.post('/treinos/:workoutId/importar-treino', (req, res) => {
+  const workoutId = parseInt(req.params.workoutId);
+  const sourceId  = parseInt(req.body.source_workout_id);
+  const target = db.prepare('SELECT * FROM workouts WHERE id = ?').get(workoutId);
+  const source = db.prepare('SELECT * FROM workouts WHERE id = ?').get(sourceId);
+  if (!target || !source) {
+    req.flash('error', 'Treino não encontrado.');
+    return res.redirect('/admin/clientes');
+  }
+  const sourceExs = db.prepare('SELECT * FROM exercises WHERE workout_id = ? ORDER BY order_idx').all(sourceId);
+  if (sourceExs.length === 0) {
+    req.flash('error', 'O treino selecionado está vazio.');
+    return res.redirect('/admin/clientes/' + (req.body.client_id || target.client_id));
+  }
+
+  const startRow = db.prepare('SELECT COALESCE(MAX(order_idx), -1) as m FROM exercises WHERE workout_id = ?').get(workoutId);
+  let order = (startRow ? startRow.m : -1) + 1;
+  const ins = db.prepare(`INSERT INTO exercises (workout_id, library_id, name, sets, reps, rest, load_kg, video_url, notes, order_idx) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+  const tx = db.transaction(() => {
+    sourceExs.forEach(e => {
+      ins.run(workoutId, e.library_id, e.name, e.sets, e.reps, e.rest, e.load_kg, e.video_url, e.notes, order++);
+    });
+  });
+  tx();
+
+  req.flash('success', `📥 ${sourceExs.length} exercício(s) importado(s) do treino "${source.day_label}: ${source.title}".`);
+  res.redirect('/admin/clientes/' + (req.body.client_id || target.client_id));
+});
+
+// AJAX: preview de exercícios de um treino (pra mostrar antes de importar)
+router.get('/api/treinos/:id/exercicios', (req, res) => {
+  const exs = db.prepare(`SELECT id, name, sets, reps, rest, load_kg FROM exercises WHERE workout_id = ? ORDER BY order_idx`).all(req.params.id);
+  res.json({ ok: true, exercicios: exs });
 });
 
 router.post('/treinos/:workoutId/delete', (req, res) => {

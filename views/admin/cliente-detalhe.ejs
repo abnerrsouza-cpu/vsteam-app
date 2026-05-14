@@ -340,24 +340,27 @@
             <p class="text-muted fs-sm">Sem exercícios ainda.</p>
           <% } %>
 
-          <details class="mt-2">
-            <summary class="btn btn-sm btn-outline" style="list-style:none">+ Adicionar exercício</summary>
-            <form action="/admin/treinos/<%= w.id %>/exercicios" method="POST" class="mt-2">
-              <input type="hidden" name="client_id" value="<%= cliente.id %>">
-              <div class="form-grid">
-                <div class="form-row"><label>Nome *</label><input type="text" name="name" required></div>
-                <div class="form-row"><label>Vídeo (URL embed)</label><input type="text" name="video_url" placeholder="https://youtube.com/embed/..."></div>
-              </div>
-              <div class="form-grid">
-                <div class="form-row"><label>Séries</label><input type="text" name="sets" placeholder="4"></div>
-                <div class="form-row"><label>Repetições</label><input type="text" name="reps" placeholder="8-10"></div>
-                <div class="form-row"><label>Descanso</label><input type="text" name="rest" placeholder="90s"></div>
-                <div class="form-row"><label>Carga (kg)</label><input type="text" name="load_kg"></div>
-              </div>
-              <div class="form-row"><label>Observação</label><textarea name="notes" rows="2"></textarea></div>
-              <button class="btn btn-sm" type="submit">Salvar exercício</button>
-            </form>
-          </details>
+          <div class="flex-gap gap-1 mt-2" style="flex-wrap:wrap">
+            <button type="button" class="btn btn-sm btn-outline btn-import-ex" data-workout-id="<%= w.id %>">📥 Importar exercícios</button>
+            <details style="display:inline-block">
+              <summary class="btn btn-sm btn-outline" style="list-style:none">+ Adicionar exercício</summary>
+              <form action="/admin/treinos/<%= w.id %>/exercicios" method="POST" class="mt-2">
+                <input type="hidden" name="client_id" value="<%= cliente.id %>">
+                <div class="form-grid">
+                  <div class="form-row"><label>Nome *</label><input type="text" name="name" required></div>
+                  <div class="form-row"><label>Vídeo (URL embed)</label><input type="text" name="video_url" placeholder="https://youtube.com/embed/..."></div>
+                </div>
+                <div class="form-grid">
+                  <div class="form-row"><label>Séries</label><input type="text" name="sets" placeholder="4"></div>
+                  <div class="form-row"><label>Repetições</label><input type="text" name="reps" placeholder="8-10"></div>
+                  <div class="form-row"><label>Descanso</label><input type="text" name="rest" placeholder="90s"></div>
+                  <div class="form-row"><label>Carga (kg)</label><input type="text" name="load_kg"></div>
+                </div>
+                <div class="form-row"><label>Observação</label><textarea name="notes" rows="2"></textarea></div>
+                <button class="btn btn-sm" type="submit">Salvar exercício</button>
+              </form>
+            </details>
+          </div>
         </div>
       <% }); %>
       <% if (workouts.length === 0) { %>
@@ -1078,4 +1081,229 @@
     }
   })();
 </script>
+
+<!-- ============================================ -->
+<!--  MODAL: Importar exercícios (biblioteca/aluno) -->
+<!-- ============================================ -->
+<div id="importExModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:9999; padding:20px; overflow:auto">
+  <div style="max-width:780px; margin:30px auto; background:var(--bg, #111); border:1px solid var(--border); border-radius:12px; padding:24px;">
+    <div class="flex-between mb-2">
+      <h3 style="margin:0">📥 Importar exercícios</h3>
+      <button type="button" id="importExClose" class="btn btn-sm btn-ghost" style="font-size:18px">×</button>
+    </div>
+    <p class="text-muted fs-sm" id="importExSubtitle" style="margin-bottom:14px">—</p>
+
+    <!-- Tabs -->
+    <div class="flex-gap gap-1 mb-2" style="border-bottom:1px solid var(--border);padding-bottom:8px">
+      <button type="button" class="btn btn-sm btn-outline import-tab active" data-import-tab="lib">📚 Biblioteca</button>
+      <button type="button" class="btn btn-sm btn-ghost import-tab" data-import-tab="aluno">👥 De outro aluno</button>
+    </div>
+
+    <!-- ABA: BIBLIOTECA -->
+    <div class="import-pane" data-import-pane="lib">
+      <form id="formImportLib" method="POST">
+        <input type="hidden" name="client_id" value="<%= cliente.id %>">
+        <div class="flex-gap gap-1 mb-2" style="flex-wrap:wrap">
+          <input type="search" id="libSearch" placeholder="Buscar exercício..." style="flex:1;min-width:200px;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg-soft);color:var(--text)">
+          <select id="libGrupo" style="padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg-soft);color:var(--text)">
+            <option value="">Todos os grupos</option>
+            <%
+              var gruposSet = {};
+              bibliotecaTodos.forEach(function(it){ if (it.muscle_group) gruposSet[it.muscle_group] = true; });
+              Object.keys(gruposSet).sort().forEach(function(g){ %>
+                <option value="<%= g %>"><%= g %></option>
+            <% }); %>
+          </select>
+        </div>
+        <div id="libCount" class="fs-sm text-muted mb-1">0 selecionado(s) de <%= bibliotecaTodos.length %> exercícios</div>
+        <div style="max-height:340px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:8px;background:var(--bg-soft)">
+          <% bibliotecaTodos.forEach(function(it){ %>
+            <label class="lib-row" data-name="<%= (it.name || '').toLowerCase() %>" data-grupo="<%= it.muscle_group || '' %>" style="display:flex;gap:10px;align-items:center;padding:8px;border-radius:6px;cursor:pointer">
+              <input type="checkbox" name="library_ids" value="<%= it.id %>" class="lib-check">
+              <div style="flex:1;min-width:0">
+                <strong style="display:block"><%= it.name %></strong>
+                <div class="fs-sm text-muted"><%= it.muscle_group || '—' %><% if (it.equipment) { %> · <%= it.equipment %><% } %></div>
+              </div>
+            </label>
+          <% }); %>
+        </div>
+        <div class="flex-between mt-2" style="gap:10px;flex-wrap:wrap">
+          <small class="text-muted">Os exercícios entram com séries 4 × 8-12, descanso 60s (você ajusta depois).</small>
+          <button class="btn" type="submit">📥 Importar selecionados</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- ABA: DE OUTRO ALUNO -->
+    <div class="import-pane" data-import-pane="aluno" style="display:none">
+      <form id="formImportAluno" method="POST">
+        <input type="hidden" name="client_id" value="<%= cliente.id %>">
+        <input type="hidden" name="source_workout_id" id="srcWorkoutId">
+        <div class="form-row">
+          <label>Aluno</label>
+          <select id="srcAlunoSel">
+            <option value="">— Escolha um aluno —</option>
+            <% outrosClientesTreinos.forEach(function(a){ %>
+              <option value="<%= a.id %>"><%= a.name %> (<%= a.workouts.length %> treino<%= a.workouts.length === 1 ? '' : 's' %>)</option>
+            <% }); %>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Treino</label>
+          <select id="srcTreinoSel" disabled>
+            <option value="">— Escolha primeiro o aluno —</option>
+          </select>
+        </div>
+
+        <div id="srcPreview" style="display:none;margin-top:10px;padding:12px;background:var(--bg-soft);border-radius:8px;border:1px solid var(--border);max-height:280px;overflow-y:auto">
+          <strong>Prévia dos exercícios:</strong>
+          <ol id="srcPreviewList" style="margin:8px 0 0 18px;padding:0"></ol>
+        </div>
+        <div id="srcEmpty" class="text-muted fs-sm" style="display:none;margin-top:10px;padding:10px;border-radius:8px;background:rgba(245,158,11,0.1)">Esse treino está vazio.</div>
+
+        <div class="flex-between mt-2" style="gap:10px;flex-wrap:wrap">
+          <small class="text-muted">Copia TODOS os exercícios do treino escolhido (sets, reps, descanso, observações).</small>
+          <button class="btn" type="submit" id="btnImportAluno" disabled>📥 Importar treino inteiro</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // Dados embarcados pra evitar AJAX extra
+  var ALUNOS_TREINOS = <%- JSON.stringify(outrosClientesTreinos) %>;
+
+  var modal = document.getElementById('importExModal');
+  var subtitle = document.getElementById('importExSubtitle');
+  var formLib = document.getElementById('formImportLib');
+  var formAluno = document.getElementById('formImportAluno');
+  var currentWorkoutId = null;
+
+  function open(workoutId, label) {
+    currentWorkoutId = workoutId;
+    formLib.action = '/admin/treinos/' + workoutId + '/importar-biblioteca';
+    formAluno.action = '/admin/treinos/' + workoutId + '/importar-treino';
+    subtitle.textContent = 'Adicionando ao treino: ' + (label || ('#' + workoutId));
+    // reset
+    document.querySelectorAll('.lib-check').forEach(c => c.checked = false);
+    updateLibCount();
+    document.getElementById('srcAlunoSel').value = '';
+    var srcTr = document.getElementById('srcTreinoSel');
+    srcTr.disabled = true;
+    srcTr.innerHTML = '<option value="">— Escolha primeiro o aluno —</option>';
+    document.getElementById('srcPreview').style.display = 'none';
+    document.getElementById('srcEmpty').style.display = 'none';
+    document.getElementById('btnImportAluno').disabled = true;
+    // foca primeira aba
+    setActiveTab('lib');
+    modal.style.display = 'block';
+  }
+  function close() { modal.style.display = 'none'; }
+
+  function setActiveTab(t) {
+    document.querySelectorAll('.import-tab').forEach(b => {
+      var on = b.getAttribute('data-import-tab') === t;
+      b.classList.toggle('active', on);
+      b.classList.toggle('btn-outline', on);
+      b.classList.toggle('btn-ghost', !on);
+    });
+    document.querySelectorAll('.import-pane').forEach(p => {
+      p.style.display = p.getAttribute('data-import-pane') === t ? '' : 'none';
+    });
+  }
+
+  document.getElementById('importExClose').addEventListener('click', close);
+  modal.addEventListener('click', e => { if (e.target === modal) close(); });
+  document.querySelectorAll('.import-tab').forEach(b => {
+    b.addEventListener('click', () => setActiveTab(b.getAttribute('data-import-tab')));
+  });
+  document.querySelectorAll('.btn-import-ex').forEach(btn => {
+    btn.addEventListener('click', () => {
+      var card = btn.closest('.card');
+      var label = card ? card.querySelector('h3')?.textContent : '';
+      open(btn.dataset.workoutId, label?.trim());
+    });
+  });
+
+  // --- ABA: BIBLIOTECA — busca/filtro/contagem ---
+  var libSearch = document.getElementById('libSearch');
+  var libGrupo  = document.getElementById('libGrupo');
+  function applyLibFilter() {
+    var termo = (libSearch.value || '').toLowerCase().trim();
+    var grupo = libGrupo.value;
+    document.querySelectorAll('.lib-row').forEach(row => {
+      var matchT = !termo || (row.dataset.name || '').indexOf(termo) !== -1;
+      var matchG = !grupo || row.dataset.grupo === grupo;
+      row.style.display = (matchT && matchG) ? 'flex' : 'none';
+    });
+  }
+  function updateLibCount() {
+    var n = document.querySelectorAll('.lib-check:checked').length;
+    document.getElementById('libCount').textContent = n + ' selecionado(s) de <%= bibliotecaTodos.length %> exercícios';
+  }
+  libSearch.addEventListener('input', applyLibFilter);
+  libGrupo.addEventListener('change', applyLibFilter);
+  document.querySelectorAll('.lib-check').forEach(c => c.addEventListener('change', updateLibCount));
+
+  // --- ABA: DE OUTRO ALUNO — cascata aluno → treino → preview ---
+  var srcAlunoSel = document.getElementById('srcAlunoSel');
+  var srcTreinoSel = document.getElementById('srcTreinoSel');
+  var srcPreview = document.getElementById('srcPreview');
+  var srcEmpty = document.getElementById('srcEmpty');
+  var srcPreviewList = document.getElementById('srcPreviewList');
+  var btnImportAluno = document.getElementById('btnImportAluno');
+  var srcWorkoutId = document.getElementById('srcWorkoutId');
+
+  srcAlunoSel.addEventListener('change', () => {
+    var alunoId = parseInt(srcAlunoSel.value);
+    srcTreinoSel.innerHTML = '<option value="">— Escolha o treino —</option>';
+    srcPreview.style.display = 'none';
+    srcEmpty.style.display = 'none';
+    btnImportAluno.disabled = true;
+    srcWorkoutId.value = '';
+
+    var aluno = ALUNOS_TREINOS.find(a => a.id === alunoId);
+    if (!aluno) { srcTreinoSel.disabled = true; return; }
+    srcTreinoSel.disabled = false;
+    aluno.workouts.forEach(w => {
+      var opt = document.createElement('option');
+      opt.value = w.id;
+      opt.textContent = 'S' + w.week_number + ' · ' + w.day_label + ': ' + w.title + ' (' + w.ex_count + ' ex.)';
+      srcTreinoSel.appendChild(opt);
+    });
+  });
+
+  srcTreinoSel.addEventListener('change', () => {
+    var wid = parseInt(srcTreinoSel.value);
+    srcPreview.style.display = 'none';
+    srcEmpty.style.display = 'none';
+    btnImportAluno.disabled = true;
+    srcWorkoutId.value = wid || '';
+    if (!wid) return;
+
+    fetch('/admin/api/treinos/' + wid + '/exercicios', { credentials: 'same-origin' })
+      .then(r => r.json())
+      .then(data => {
+        var exs = data.exercicios || [];
+        srcPreviewList.innerHTML = '';
+        if (exs.length === 0) {
+          srcEmpty.style.display = 'block';
+          return;
+        }
+        exs.forEach(e => {
+          var li = document.createElement('li');
+          li.style.padding = '4px 0';
+          li.innerHTML = '<strong>' + e.name + '</strong> <span style="color:var(--text-muted,#888)">— ' + (e.sets || '?') + ' × ' + (e.reps || '?') + ' · ' + (e.rest || '?') + (e.load_kg ? ' · ' + e.load_kg + 'kg' : '') + '</span>';
+          srcPreviewList.appendChild(li);
+        });
+        srcPreview.style.display = 'block';
+        btnImportAluno.disabled = false;
+      })
+      .catch(() => { srcEmpty.textContent = 'Erro ao carregar exercícios.'; srcEmpty.style.display = 'block'; });
+  });
+})();
+</script>
+
 <%- include('../partials/foot') %>
