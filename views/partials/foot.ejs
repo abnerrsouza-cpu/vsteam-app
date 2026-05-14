@@ -1,3 +1,6 @@
 <script src="/js/app.js"></script>
+<% if (currentUser && currentUser.role === 'admin') { %>
+  <%- include('admin-welcome-popup') %>
+<% } %>
 </body>
 </html>

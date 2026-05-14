@@ -1437,6 +1437,14 @@ router.post('/disparos/campanhas/:id/delete', (req, res) => {
 });
 
 // ===========================
+//  NOVO ALUNO — popup celebrativo
+// ===========================
+router.post('/clientes/:id/welcomed', (req, res) => {
+  db.prepare(`UPDATE clients SET welcomed_admin_at = datetime('now') WHERE id = ? AND welcomed_admin_at IS NULL`).run(req.params.id);
+  res.json({ ok: true });
+});
+
+// ===========================
 //  PLANOS (catálogo)
 // ===========================
 

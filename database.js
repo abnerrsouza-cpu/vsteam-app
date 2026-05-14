@@ -868,6 +868,18 @@ CREATE TABLE IF NOT EXISTS questionnaire_template (
 
 
 // Auto-migração: biblioteca completa (202 exercícios)
+// Auto-migração: coluna welcomed_admin_at em clients (popup pro admin quando aluno chega)
+(function ensureClientsWelcomedAdmin() {
+  try {
+    const cols = db.prepare(`PRAGMA table_info(clients)`).all().map(c => c.name);
+    if (!cols.includes('welcomed_admin_at')) {
+      db.exec(`ALTER TABLE clients ADD COLUMN welcomed_admin_at TEXT`);
+      // Marca clientes EXISTENTES como já comunicados, pra não spammar o popup no primeiro deploy
+      db.prepare(`UPDATE clients SET welcomed_admin_at = datetime('now') WHERE welcomed_admin_at IS NULL`).run();
+    }
+  } catch(e) { console.error('migrate welcomed_admin_at:', e.message); }
+})();
+
 // Auto-migração: catálogo de Planos
 (function ensurePlans() {
   try {

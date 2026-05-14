@@ -1,0 +1,108 @@
+<% if (locals.adminWelcomeQueue && adminWelcomeQueue.length > 0) {
+     // Sempre mostra o mais antigo primeiro; os demais aparecem nos próximos refreshes
+     var novo = adminWelcomeQueue[0];
+     var firstName = (novo.name || '').trim().split(/\s+/)[0] || novo.name;
+     var resto = adminWelcomeQueue.length - 1;
+%>
+<div id="adminWelcomeModal" class="welcome-overlay">
+  <canvas id="adminWelcomeConfetti" class="welcome-confetti"></canvas>
+  <div class="welcome-card">
+    <div class="welcome-emoji">🎉</div>
+    <h1>Novo aluno chegou!</h1>
+    <p class="text-muted" style="font-size:15px;margin-bottom:18px">Bora começar firme com mais um.</p>
+
+    <div style="background:var(--bg-soft);border-radius:10px;padding:16px;margin-bottom:18px;text-align:left">
+      <div style="font-size:22px;font-weight:700;color:var(--primary,#e10600);margin-bottom:6px"><%= novo.name %></div>
+      <div class="fs-sm text-muted" style="margin-bottom:8px"><%= novo.email %></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:13px">
+        <% if (novo.plan) { %>
+          <span style="background:var(--primary,#e10600);color:#fff;padding:3px 10px;border-radius:6px;font-weight:600">📦 <%= novo.plan %></span>
+        <% } %>
+        <% if (novo.plan_duration) { %>
+          <span style="background:rgba(255,255,255,0.08);padding:3px 10px;border-radius:6px">⏳ <%= novo.plan_duration %></span>
+        <% } %>
+        <% if (novo.value && novo.value > 0) { %>
+          <span style="background:rgba(16,185,129,0.15);color:#10b981;padding:3px 10px;border-radius:6px;font-weight:600">💵 R$ <%= Number(novo.value).toFixed(2).replace('.', ',') %></span>
+        <% } %>
+      </div>
+    </div>
+
+    <div class="welcome-step" style="text-align:left">
+      <strong>Próximo passo:</strong> abra o painel do <%= firstName %>, monte o primeiro treino e dieta, e dê as boas-vindas dele no WhatsApp.
+    </div>
+
+    <a href="/admin/clientes/<%= novo.id %>" class="btn btn-block" id="adminWelcomeCta">Abrir painel do <%= firstName %></a>
+    <button class="btn btn-ghost btn-block mt-2" id="adminWelcomeClose">Fechar</button>
+
+    <% if (resto > 0) { %>
+      <div class="fs-sm text-muted" style="margin-top:12px">
+        + <strong><%= resto %></strong> novo(s) aluno(s) aguardando — vão aparecer nos próximos acessos.
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<script>
+(function(){
+  var overlay = document.getElementById('adminWelcomeModal');
+  var canvas  = document.getElementById('adminWelcomeConfetti');
+  if (!overlay || !canvas) return;
+
+  function markWelcomed() {
+    return fetch('/admin/clientes/<%= novo.id %>/welcomed', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  document.getElementById('adminWelcomeClose').addEventListener('click', function(){
+    overlay.style.display = 'none';
+    markWelcomed();
+  });
+  document.getElementById('adminWelcomeCta').addEventListener('click', function(e){
+    e.preventDefault();
+    var href = e.currentTarget.getAttribute('href');
+    markWelcomed().finally(function(){ window.location.href = href; });
+  });
+
+  // Confetes
+  var ctx = canvas.getContext('2d');
+  function resize(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+  resize(); window.addEventListener('resize', resize);
+
+  var colors = ['#e50914','#ffc107','#ffffff','#ff6b00','#10b981','#22c55e'];
+  var pieces = [];
+  for (var i=0; i<180; i++){
+    pieces.push({
+      x: Math.random()*canvas.width,
+      y: -Math.random()*canvas.height,
+      w: 8 + Math.random()*6,
+      h: 12 + Math.random()*8,
+      vx: -2 + Math.random()*4,
+      vy: 2 + Math.random()*4,
+      rot: Math.random()*Math.PI*2,
+      vrot: -0.2 + Math.random()*0.4,
+      color: colors[Math.floor(Math.random()*colors.length)]
+    });
+  }
+  var frames = 0;
+  function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    pieces.forEach(function(p){
+      p.x += p.vx; p.y += p.vy; p.rot += p.vrot;
+      if (p.y > canvas.height + 50) { p.y = -50; p.x = Math.random()*canvas.width; }
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+      ctx.restore();
+    });
+    frames++;
+    if (frames < 700 && overlay.style.display !== 'none') requestAnimationFrame(draw);
+  }
+  draw();
+})();
+</script>
+<% } %>

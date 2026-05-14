@@ -73,6 +73,21 @@ app.use((req, res, next) => {
   if (req.session.user && req.session.user.role === 'client' && req.session.user.client_id) {
     try { res.locals.unreadNotifs = unreadCount(req.session.user.client_id); } catch(e) {}
   }
+
+  // Fila de boas-vindas pro admin: clientes novos que ainda não foram celebrados
+  res.locals.adminWelcomeQueue = [];
+  if (req.session.user && req.session.user.role === 'admin') {
+    try {
+      res.locals.adminWelcomeQueue = db.prepare(`
+        SELECT c.id, c.plan, c.plan_duration, c.value, c.created_at, u.name, u.email
+        FROM clients c
+        JOIN users u ON u.id = c.user_id
+        WHERE c.welcomed_admin_at IS NULL
+        ORDER BY c.created_at ASC
+        LIMIT 5
+      `).all();
+    } catch(e) {}
+  }
   next();
 });
 
