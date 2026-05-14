@@ -4,6 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const db = require('../database');
+const { DESTINOS, VARIAVEIS_DOC, processPendingCampaigns } = require('../helpers/notifications');
 
 const router = express.Router();
 
@@ -1243,6 +1244,147 @@ router.post('/clientes/:id/reset-senha', (req, res) => {
   db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, cliente.user_id);
   req.flash('success', '🔑 Senha redefinida! Nova senha: ' + password + ' — compartilhe com o aluno pelo WhatsApp. Recomende que ele troque depois no perfil dele.');
   res.redirect(`/admin/clientes/${req.params.id}`);
+});
+
+// ===========================
+//  DISPAROS / NOTIFICAÇÕES
+// ===========================
+
+router.get('/disparos', (req, res) => {
+  const templates = db.prepare(`SELECT * FROM notification_templates ORDER BY created_at DESC`).all();
+  const campaigns = db.prepare(`
+    SELECT c.*, t.name as template_name
+    FROM notification_campaigns c
+    LEFT JOIN notification_templates t ON t.id = c.template_id
+    ORDER BY
+      CASE c.status WHEN 'pending' THEN 0 WHEN 'sent' THEN 1 ELSE 2 END,
+      c.scheduled_for DESC
+  `).all();
+  const clientes = db.prepare(`SELECT id, name, status FROM clients ORDER BY status, name`).all();
+
+  // Status de leitura por campanha (para mostrar "12/15 lidas")
+  const leituras = {};
+  campaigns.forEach(c => {
+    const r = db.prepare(`
+      SELECT COUNT(*) as total, SUM(CASE WHEN read_at IS NOT NULL THEN 1 ELSE 0 END) as lidas
+      FROM notifications WHERE campaign_id = ?
+    `).get(c.id);
+    leituras[c.id] = r || { total: 0, lidas: 0 };
+  });
+
+  res.render('admin/disparos', {
+    title: 'Disparos — VS TEAM',
+    templates, campaigns, clientes, leituras,
+    DESTINOS, VARIAVEIS_DOC,
+  });
+});
+
+router.post('/disparos/templates', (req, res) => {
+  const { name, title, body, redirect_to } = req.body;
+  if (!name || !title || !body) {
+    req.flash('error', 'Preencha nome, título e mensagem do template.');
+    return res.redirect('/admin/disparos');
+  }
+  db.prepare(`INSERT INTO notification_templates (name, title, body, redirect_to) VALUES (?, ?, ?, ?)`)
+    .run(name.trim(), title.trim(), body.trim(), redirect_to || '/cliente');
+  req.flash('success', '✅ Template criado.');
+  res.redirect('/admin/disparos');
+});
+
+router.post('/disparos/templates/:id/update', (req, res) => {
+  const { name, title, body, redirect_to } = req.body;
+  db.prepare(`UPDATE notification_templates SET name=?, title=?, body=?, redirect_to=? WHERE id=?`)
+    .run(name.trim(), title.trim(), body.trim(), redirect_to || '/cliente', req.params.id);
+  req.flash('success', '✅ Template atualizado.');
+  res.redirect('/admin/disparos');
+});
+
+router.post('/disparos/templates/:id/delete', (req, res) => {
+  db.prepare(`DELETE FROM notification_templates WHERE id = ?`).run(req.params.id);
+  req.flash('success', 'Template removido.');
+  res.redirect('/admin/disparos');
+});
+
+router.post('/disparos/campanhas', (req, res) => {
+  let { name, template_id, title, body, redirect_to, scheduled_for, client_ids, select_all } = req.body;
+  if (!name || !title || !body || !scheduled_for) {
+    req.flash('error', 'Preencha nome, mensagem e data/hora do disparo.');
+    return res.redirect('/admin/disparos');
+  }
+
+  // Normaliza datetime-local (yyyy-mm-ddTHH:MM) -> "yyyy-mm-dd HH:MM:00"
+  let when = String(scheduled_for).replace('T', ' ');
+  if (when.length === 16) when += ':00';
+
+  // Resolve destinatários
+  let recipientIds = [];
+  if (select_all === '1') {
+    recipientIds = db.prepare(`SELECT id FROM clients WHERE status IN ('ativo','implementacao')`).all().map(r => r.id);
+  } else {
+    if (!client_ids) client_ids = [];
+    if (!Array.isArray(client_ids)) client_ids = [client_ids];
+    recipientIds = client_ids.map(x => parseInt(x)).filter(x => x > 0);
+  }
+
+  if (recipientIds.length === 0) {
+    req.flash('error', 'Selecione pelo menos 1 aluno (ou marque "Todos os alunos ativos").');
+    return res.redirect('/admin/disparos');
+  }
+
+  const tx = db.transaction(() => {
+    const info = db.prepare(`
+      INSERT INTO notification_campaigns
+        (name, template_id, title_snapshot, body_snapshot, redirect_to, scheduled_for, total_recipients, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
+    `).run(
+      name.trim(),
+      template_id ? parseInt(template_id) : null,
+      title.trim(),
+      body.trim(),
+      redirect_to || '/cliente',
+      when,
+      recipientIds.length
+    );
+    const ins = db.prepare(`INSERT OR IGNORE INTO notification_campaign_recipients (campaign_id, client_id) VALUES (?, ?)`);
+    recipientIds.forEach(cid => ins.run(info.lastInsertRowid, cid));
+  });
+  tx();
+
+  // Se a data já passou (disparo "imediato" — ex.: usuário escolheu agora), processa já.
+  processPendingCampaigns();
+
+  req.flash('success', `🚀 Disparo "${name}" agendado para ${recipientIds.length} aluno(s).`);
+  res.redirect('/admin/disparos');
+});
+
+router.post('/disparos/campanhas/:id/cancelar', (req, res) => {
+  const c = db.prepare(`SELECT * FROM notification_campaigns WHERE id = ?`).get(req.params.id);
+  if (c && c.status === 'pending') {
+    db.prepare(`UPDATE notification_campaigns SET status='canceled' WHERE id=?`).run(req.params.id);
+    req.flash('success', 'Disparo cancelado.');
+  } else {
+    req.flash('error', 'Só dá pra cancelar disparos pendentes.');
+  }
+  res.redirect('/admin/disparos');
+});
+
+router.post('/disparos/campanhas/:id/disparar-agora', (req, res) => {
+  const c = db.prepare(`SELECT * FROM notification_campaigns WHERE id = ?`).get(req.params.id);
+  if (c && c.status === 'pending') {
+    // Antecipa o horário pra agora e processa
+    db.prepare(`UPDATE notification_campaigns SET scheduled_for=datetime('now','localtime') WHERE id=?`).run(req.params.id);
+    processPendingCampaigns();
+    req.flash('success', '🚀 Disparo enviado agora.');
+  } else {
+    req.flash('error', 'Esse disparo não está pendente.');
+  }
+  res.redirect('/admin/disparos');
+});
+
+router.post('/disparos/campanhas/:id/delete', (req, res) => {
+  db.prepare(`DELETE FROM notification_campaigns WHERE id = ?`).run(req.params.id);
+  req.flash('success', 'Disparo removido do histórico.');
+  res.redirect('/admin/disparos');
 });
 
 module.exports = router;

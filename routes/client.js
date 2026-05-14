@@ -454,4 +454,55 @@ router.post('/senha', (req, res) => {
   res.redirect('/cliente/perfil');
 });
 
+// ===========================
+//  URGENTES (notificações)
+// ===========================
+
+router.get('/urgentes', (req, res) => {
+  const clientId = req.session.user.client_id;
+  const notifs = db.prepare(`
+    SELECT id, title, body, redirect_to, read_at, created_at
+    FROM notifications
+    WHERE client_id = ?
+    ORDER BY (read_at IS NULL) DESC, created_at DESC
+  `).all(clientId);
+  const naoLidas = notifs.filter(n => !n.read_at).length;
+  res.render('cliente/urgentes', {
+    title: 'Urgentes — VS TEAM',
+    notifs, naoLidas,
+  });
+});
+
+router.post('/urgentes/:id/lida', (req, res) => {
+  const clientId = req.session.user.client_id;
+  db.prepare(`UPDATE notifications SET read_at = datetime('now') WHERE id = ? AND client_id = ? AND read_at IS NULL`)
+    .run(req.params.id, clientId);
+  res.redirect('/cliente/urgentes');
+});
+
+router.post('/urgentes/marcar-todas', (req, res) => {
+  const clientId = req.session.user.client_id;
+  const r = db.prepare(`UPDATE notifications SET read_at = datetime('now') WHERE client_id = ? AND read_at IS NULL`).run(clientId);
+  if (r.changes > 0) req.flash('success', `✅ ${r.changes} notificação(ões) marcada(s) como lida.`);
+  res.redirect('/cliente/urgentes');
+});
+
+// Marca como lida e redireciona pra área alvo
+router.get('/urgentes/:id/abrir', (req, res) => {
+  const clientId = req.session.user.client_id;
+  const n = db.prepare(`SELECT redirect_to FROM notifications WHERE id = ? AND client_id = ?`).get(req.params.id, clientId);
+  if (!n) return res.redirect('/cliente/urgentes');
+  db.prepare(`UPDATE notifications SET read_at = COALESCE(read_at, datetime('now')) WHERE id = ? AND client_id = ?`)
+    .run(req.params.id, clientId);
+  const dest = String(n.redirect_to || '/cliente');
+  if (!dest.startsWith('/cliente')) return res.redirect('/cliente');
+  res.redirect(dest);
+});
+
+router.post('/urgentes/:id/delete', (req, res) => {
+  const clientId = req.session.user.client_id;
+  db.prepare(`DELETE FROM notifications WHERE id = ? AND client_id = ?`).run(req.params.id, clientId);
+  res.redirect('/cliente/urgentes');
+});
+
 module.exports = router;

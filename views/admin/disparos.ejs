@@ -1,0 +1,271 @@
+<%- include('../partials/head') %>
+<div class="app">
+  <%- include('../partials/sidebar-admin') %>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1>Disparos</h1>
+        <p class="text-muted mb-0">Crie templates de mensagem e agende notificações pros seus alunos. Eles veem no painel deles na aba "Urgentes".</p>
+      </div>
+    </div>
+    <%- include('../partials/flash') %>
+
+    <!-- Tabs -->
+    <div class="tabs" style="margin-bottom:16px">
+      <button class="tab-btn active" data-tab="campanhas">📨 Disparos (<%= campaigns.length %>)</button>
+      <button class="tab-btn" data-tab="templates">📋 Templates (<%= templates.length %>)</button>
+      <button class="tab-btn" data-tab="novo">+ Novo disparo</button>
+    </div>
+
+    <!-- ABA: DISPAROS -->
+    <div class="tab-pane active" data-pane="campanhas">
+      <% if (campaigns.length === 0) { %>
+        <div class="card text-center text-muted">Nenhum disparo agendado ou enviado ainda. Crie o primeiro!</div>
+      <% } else { %>
+        <% campaigns.forEach(function(c){
+             var lr = leituras[c.id] || { total: 0, lidas: 0 };
+             var statusLabel = c.status === 'pending' ? '⏳ Pendente'
+                              : c.status === 'sent'    ? '✅ Enviado'
+                              : c.status === 'canceled'? '❌ Cancelado' : c.status;
+             var statusColor = c.status === 'pending' ? 'var(--warning, #f59e0b)'
+                              : c.status === 'sent'    ? 'var(--success, #10b981)'
+                              : '#888';
+        %>
+          <div class="card mb-2">
+            <div class="flex-between" style="align-items:flex-start;flex-wrap:wrap;gap:12px">
+              <div style="flex:1;min-width:240px">
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                  <strong style="font-size:16px"><%= c.name %></strong>
+                  <span class="chip" style="background:<%= statusColor %>;color:#fff;font-size:11px;padding:2px 8px;border-radius:6px"><%= statusLabel %></span>
+                </div>
+                <div class="fs-sm text-muted" style="margin-top:4px">
+                  📅 <%= c.scheduled_for %> · 👥 <%= c.total_recipients %> aluno(s)
+                  <% if (c.template_name) { %> · Template: <em><%= c.template_name %></em><% } %>
+                </div>
+                <div style="margin-top:8px;padding:8px;background:var(--bg-soft);border-radius:6px">
+                  <strong><%= c.title_snapshot %></strong>
+                  <p class="fs-sm text-muted mb-0" style="margin-top:4px;white-space:pre-wrap"><%= c.body_snapshot %></p>
+                </div>
+                <% if (c.status === 'sent') { %>
+                  <div class="fs-sm" style="margin-top:6px;color:var(--success,#10b981)">
+                    📖 <%= lr.lidas || 0 %> / <%= lr.total || 0 %> lidas
+                  </div>
+                <% } %>
+              </div>
+              <div class="flex-gap gap-1" style="flex-direction:column;align-items:stretch;min-width:160px">
+                <% if (c.status === 'pending') { %>
+                  <form action="/admin/disparos/campanhas/<%= c.id %>/disparar-agora" method="POST" style="margin:0">
+                    <button class="btn btn-sm" type="submit">🚀 Disparar agora</button>
+                  </form>
+                  <form action="/admin/disparos/campanhas/<%= c.id %>/cancelar" method="POST" data-confirm="Cancelar este disparo?" style="margin:0">
+                    <button class="btn btn-sm btn-ghost" type="submit">Cancelar</button>
+                  </form>
+                <% } %>
+                <form action="/admin/disparos/campanhas/<%= c.id %>/delete" method="POST" data-confirm="Remover do histórico?" style="margin:0">
+                  <button class="btn btn-sm btn-ghost" type="submit">🗑️ Excluir</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        <% }); %>
+      <% } %>
+    </div>
+
+    <!-- ABA: TEMPLATES -->
+    <div class="tab-pane" data-pane="templates" style="display:none">
+      <div class="card mb-3">
+        <h3>+ Novo template</h3>
+        <p class="fs-sm text-muted">Templates ficam salvos pra você reaproveitar. Use variáveis pra personalizar.</p>
+        <form action="/admin/disparos/templates" method="POST">
+          <div class="form-row">
+            <label>Nome interno *</label>
+            <input type="text" name="name" placeholder="Ex: Lembrete fotos semana, Aviso de avaliação..." required>
+          </div>
+          <div class="form-row">
+            <label>Título da notificação *</label>
+            <input type="text" name="title" placeholder="Ex: Bora mandar as fotos da semana!" required>
+          </div>
+          <div class="form-row">
+            <label>Mensagem *</label>
+            <textarea name="body" rows="3" placeholder="Oi {nome}! Lembrete: envia suas fotos da semana {semana} até hoje." required></textarea>
+            <small class="text-muted">
+              Variáveis disponíveis:
+              <% VARIAVEIS_DOC.forEach(function(v, i){ %><code><%= v.token %></code> <span class="fs-sm">(<%= v.desc %>)</span><% if (i < VARIAVEIS_DOC.length-1) { %>, <% } %><% }); %>
+            </small>
+          </div>
+          <div class="form-row">
+            <label>Ao clicar, levar para</label>
+            <select name="redirect_to">
+              <% DESTINOS.forEach(function(d){ %><option value="<%= d.value %>"><%= d.label %></option><% }); %>
+            </select>
+          </div>
+          <button class="btn" type="submit">Criar template</button>
+        </form>
+      </div>
+
+      <% if (templates.length === 0) { %>
+        <div class="card text-center text-muted">Nenhum template ainda.</div>
+      <% } else { %>
+        <% templates.forEach(function(t){ %>
+          <div class="card mb-2">
+            <details>
+              <summary style="cursor:pointer">
+                <strong><%= t.name %></strong>
+                <span class="text-muted fs-sm">— <%= t.title %></span>
+              </summary>
+              <form action="/admin/disparos/templates/<%= t.id %>/update" method="POST" style="margin-top:12px">
+                <div class="form-row"><label>Nome</label><input type="text" name="name" value="<%= t.name %>" required></div>
+                <div class="form-row"><label>Título</label><input type="text" name="title" value="<%= t.title %>" required></div>
+                <div class="form-row"><label>Mensagem</label><textarea name="body" rows="3" required><%= t.body %></textarea></div>
+                <div class="form-row">
+                  <label>Destino</label>
+                  <select name="redirect_to">
+                    <% DESTINOS.forEach(function(d){ %><option value="<%= d.value %>" <%= t.redirect_to === d.value ? 'selected' : '' %>><%= d.label %></option><% }); %>
+                  </select>
+                </div>
+                <div class="flex-gap gap-1">
+                  <button class="btn btn-sm" type="submit">💾 Salvar</button>
+                </div>
+              </form>
+              <form action="/admin/disparos/templates/<%= t.id %>/delete" method="POST" data-confirm="Remover este template?" style="margin-top:8px">
+                <button class="btn btn-sm btn-ghost" type="submit">🗑️ Remover template</button>
+              </form>
+            </details>
+          </div>
+        <% }); %>
+      <% } %>
+    </div>
+
+    <!-- ABA: NOVO DISPARO -->
+    <div class="tab-pane" data-pane="novo" style="display:none">
+      <div class="card">
+        <h3>📨 Agendar novo disparo</h3>
+        <form action="/admin/disparos/campanhas" method="POST" id="formNovoDisparo">
+          <div class="form-row">
+            <label>Nome da programação *</label>
+            <input type="text" name="name" placeholder="Ex: Lembrete fotos semana 12" required>
+            <small class="text-muted">Pra você identificar internamente. O aluno não vê esse nome.</small>
+          </div>
+
+          <div class="form-row">
+            <label>Carregar de um template (opcional)</label>
+            <select name="template_id" id="templateSelector">
+              <option value="">— Em branco —</option>
+              <% templates.forEach(function(t){ %>
+                <option value="<%= t.id %>"
+                        data-title="<%= encodeURIComponent(t.title) %>"
+                        data-body="<%= encodeURIComponent(t.body) %>"
+                        data-redirect="<%= t.redirect_to || '/cliente' %>">
+                  <%= t.name %>
+                </option>
+              <% }); %>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <label>Título da notificação *</label>
+            <input type="text" name="title" id="campTitle" required>
+          </div>
+          <div class="form-row">
+            <label>Mensagem *</label>
+            <textarea name="body" id="campBody" rows="4" required></textarea>
+            <small class="text-muted">
+              Variáveis:
+              <% VARIAVEIS_DOC.forEach(function(v, i){ %><code><%= v.token %></code><% if (i < VARIAVEIS_DOC.length-1) { %>, <% } %><% }); %>
+            </small>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-row">
+              <label>Ao clicar, levar para</label>
+              <select name="redirect_to" id="campRedirect">
+                <% DESTINOS.forEach(function(d){ %><option value="<%= d.value %>"><%= d.label %></option><% }); %>
+              </select>
+            </div>
+            <div class="form-row">
+              <label>Data e hora do disparo *</label>
+              <input type="datetime-local" name="scheduled_for" id="schedField" required>
+              <small class="text-muted">Deixe agora pra disparar imediatamente.</small>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label>Destinatários *</label>
+            <div style="padding:12px;background:var(--bg-soft);border-radius:8px;border:1px solid var(--border)">
+              <label style="display:flex;gap:8px;align-items:center;margin-bottom:10px;cursor:pointer">
+                <input type="checkbox" name="select_all" value="1" id="selectAll">
+                <strong>Todos os alunos ativos (<%= clientes.filter(c => c.status === 'ativo' || c.status === 'implementacao').length %>)</strong>
+              </label>
+              <div id="clientList" style="max-height:280px;overflow-y:auto;border-top:1px solid var(--border);padding-top:10px">
+                <% clientes.forEach(function(cl){
+                     var statusChip = cl.status === 'ativo' ? '🟢' : cl.status === 'implementacao' ? '🟡' : '⚪';
+                %>
+                  <label style="display:flex;gap:8px;align-items:center;padding:6px 0;cursor:pointer">
+                    <input type="checkbox" name="client_ids" value="<%= cl.id %>" class="client-pick">
+                    <span><%= statusChip %> <%= cl.name %></span>
+                    <span class="text-muted fs-sm" style="margin-left:auto"><%= cl.status %></span>
+                  </label>
+                <% }); %>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn" type="submit">🚀 Agendar disparo</button>
+        </form>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+(function(){
+  // Tabs
+  var tabBtns = document.querySelectorAll('.tab-btn');
+  var panes = document.querySelectorAll('.tab-pane');
+  tabBtns.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      tabBtns.forEach(function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      var target = btn.getAttribute('data-tab');
+      panes.forEach(function(p){
+        p.style.display = (p.getAttribute('data-pane') === target) ? '' : 'none';
+      });
+    });
+  });
+
+  // Template selector -> preenche título/corpo/destino
+  var sel = document.getElementById('templateSelector');
+  if (sel) {
+    sel.addEventListener('change', function(){
+      var opt = sel.options[sel.selectedIndex];
+      if (!opt || !opt.value) return;
+      var title = decodeURIComponent(opt.getAttribute('data-title') || '');
+      var body  = decodeURIComponent(opt.getAttribute('data-body')  || '');
+      var redir = opt.getAttribute('data-redirect') || '/cliente';
+      document.getElementById('campTitle').value = title;
+      document.getElementById('campBody').value  = body;
+      document.getElementById('campRedirect').value = redir;
+    });
+  }
+
+  // Default scheduled_for = agora +5min
+  var sched = document.getElementById('schedField');
+  if (sched && !sched.value) {
+    var d = new Date(Date.now() + 5*60*1000);
+    var pad = function(n){ return String(n).padStart(2,'0'); };
+    sched.value = d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
+  }
+
+  // "Todos os ativos" desmarca lista manual
+  var selectAll = document.getElementById('selectAll');
+  var picks = document.querySelectorAll('.client-pick');
+  if (selectAll) {
+    selectAll.addEventListener('change', function(){
+      if (selectAll.checked) picks.forEach(function(p){ p.checked = false; p.disabled = true; });
+      else picks.forEach(function(p){ p.disabled = false; });
+    });
+  }
+})();
+</script>
+
+<%- include('../partials/foot') %>

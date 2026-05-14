@@ -868,6 +868,62 @@ CREATE TABLE IF NOT EXISTS questionnaire_template (
 
 
 // Auto-migração: biblioteca completa (202 exercícios)
+// Auto-migração: sistema de notificações (Disparos / Urgentes)
+(function ensureNotifications() {
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS notification_templates (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        title TEXT NOT NULL,
+        body TEXT NOT NULL,
+        redirect_to TEXT DEFAULT '/cliente',
+        created_at TEXT DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS notification_campaigns (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        template_id INTEGER,
+        title_snapshot TEXT NOT NULL,
+        body_snapshot TEXT NOT NULL,
+        redirect_to TEXT DEFAULT '/cliente',
+        scheduled_for TEXT NOT NULL,
+        status TEXT DEFAULT 'pending',
+        total_recipients INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT (datetime('now')),
+        sent_at TEXT,
+        FOREIGN KEY (template_id) REFERENCES notification_templates(id) ON DELETE SET NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS notification_campaign_recipients (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        campaign_id INTEGER NOT NULL,
+        client_id INTEGER NOT NULL,
+        FOREIGN KEY (campaign_id) REFERENCES notification_campaigns(id) ON DELETE CASCADE,
+        FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
+        UNIQUE(campaign_id, client_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS notifications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        client_id INTEGER NOT NULL,
+        campaign_id INTEGER,
+        title TEXT NOT NULL,
+        body TEXT NOT NULL,
+        redirect_to TEXT DEFAULT '/cliente',
+        read_at TEXT,
+        created_at TEXT DEFAULT (datetime('now')),
+        FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
+        FOREIGN KEY (campaign_id) REFERENCES notification_campaigns(id) ON DELETE SET NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_notifications_client_read ON notifications(client_id, read_at);
+      CREATE INDEX IF NOT EXISTS idx_campaigns_status_when ON notification_campaigns(status, scheduled_for);
+    `);
+  } catch(e) { console.error('migrate notifications:', e.message); }
+})();
+
 (function ensureBibliotecaCompleta() {
   try {
     db.exec(`CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)`);

@@ -1,0 +1,67 @@
+<%- include('../partials/head') %>
+<div class="app">
+  <%- include('../partials/sidebar-client') %>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1>🔔 Urgentes</h1>
+        <p class="text-muted mb-0">Avisos importantes do seu coach. Toque numa notificação pra ir direto pra área correspondente.</p>
+      </div>
+    </div>
+    <%- include('../partials/flash') %>
+
+    <% if (notifs.length === 0) { %>
+      <div class="card text-center text-muted" style="padding:40px">
+        <div style="font-size:48px;margin-bottom:12px">🎉</div>
+        <strong>Tudo em dia!</strong>
+        <p class="fs-sm">Nenhuma notificação por aqui.</p>
+      </div>
+    <% } else { %>
+
+      <div class="card flex-between" style="flex-wrap:wrap;gap:10px;margin-bottom:14px">
+        <div>
+          <strong><%= naoLidas %></strong> não lida(s) · <%= notifs.length %> total
+        </div>
+        <% if (naoLidas > 0) { %>
+          <form action="/cliente/urgentes/marcar-todas" method="POST" style="margin:0">
+            <button class="btn btn-sm" type="submit">✓ Marcar todas como lida</button>
+          </form>
+        <% } %>
+      </div>
+
+      <% notifs.forEach(function(n){
+           var isUnread = !n.read_at;
+      %>
+        <div class="card mb-2 notif-card <%= isUnread ? 'notif-unread' : 'notif-read' %>"
+             style="<%= isUnread ? 'border-left:4px solid var(--primary,#e10600);' : 'opacity:0.7;' %>">
+          <div class="flex-between" style="align-items:flex-start;flex-wrap:wrap;gap:12px">
+            <a href="/cliente/urgentes/<%= n.id %>/abrir" style="flex:1;min-width:220px;text-decoration:none;color:inherit">
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <% if (isUnread) { %><span style="width:8px;height:8px;background:var(--primary,#e10600);border-radius:50%;display:inline-block"></span><% } %>
+                <strong style="font-size:15px"><%= n.title %></strong>
+              </div>
+              <p class="fs-sm" style="margin-top:6px;white-space:pre-wrap;color:var(--text)"><%= n.body %></p>
+              <div class="fs-sm text-muted" style="margin-top:4px">
+                <%= n.created_at %>
+                <% if (n.redirect_to && n.redirect_to !== '/cliente/urgentes') { %>
+                  · <span style="color:var(--primary)">Tocar para abrir →</span>
+                <% } %>
+              </div>
+            </a>
+            <div class="flex-gap gap-1" style="flex-direction:column">
+              <% if (isUnread) { %>
+                <form action="/cliente/urgentes/<%= n.id %>/lida" method="POST" style="margin:0">
+                  <button class="btn btn-sm btn-ghost" type="submit" title="Marcar como lida">✓</button>
+                </form>
+              <% } %>
+              <form action="/cliente/urgentes/<%= n.id %>/delete" method="POST" data-confirm="Excluir esta notificação?" style="margin:0">
+                <button class="btn btn-sm btn-ghost" type="submit" title="Excluir">×</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      <% }); %>
+    <% } %>
+  </main>
+</div>
+<%- include('../partials/foot') %>

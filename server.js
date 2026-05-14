@@ -12,6 +12,7 @@ const adminRoutes = require('./routes/admin');
 const clientRoutes = require('./routes/client');
 const { requireAuth, requireRole } = require('./middleware/auth');
 const ICONS = require('./helpers/icons');
+const { processPendingCampaigns, unreadCount } = require('./helpers/notifications');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -66,8 +67,29 @@ app.use((req, res, next) => {
   res.locals.currentPath = req.path;
   const logoPath = path.join(__dirname, 'public', 'logos', 'logo.png');
   res.locals.hasLogo = fs.existsSync(logoPath);
+
+  // Badge de notificações não lidas (para o sidebar do cliente)
+  res.locals.unreadNotifs = 0;
+  if (req.session.user && req.session.user.role === 'client' && req.session.user.client_id) {
+    try { res.locals.unreadNotifs = unreadCount(req.session.user.client_id); } catch(e) {}
+  }
   next();
 });
+
+// Scheduler: processa campanhas agendadas a cada 60s.
+// Também roda 1x no boot e 1x a cada request HTTP (lazy) — pra Railway free tier
+// que dorme: na primeira visita após dormir, o disparo pendente sai sozinho.
+let lastScheduledRun = 0;
+app.use((req, res, next) => {
+  const now = Date.now();
+  if (now - lastScheduledRun > 30_000) {
+    lastScheduledRun = now;
+    setImmediate(() => processPendingCampaigns());
+  }
+  next();
+});
+setInterval(processPendingCampaigns, 60_000).unref();
+setImmediate(processPendingCampaigns);
 
 // Rotas
 app.get('/', (req, res) => {

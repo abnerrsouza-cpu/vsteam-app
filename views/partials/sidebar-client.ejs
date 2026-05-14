@@ -16,6 +16,12 @@
     <a href="/cliente" class="nav-item <%= currentPath === '/' ? 'active' : '' %>">
       <span class="nav-icon"><%- ICONS.dashboard %></span>Dashboard
     </a>
+    <a href="/cliente/urgentes" class="nav-item <%= currentPath.startsWith('/urgentes') ? 'active' : '' %>">
+      <span class="nav-icon"><%- ICONS.alert %></span>Urgentes
+      <% if (typeof unreadNotifs !== 'undefined' && unreadNotifs > 0) { %>
+        <span class="nav-badge"><%= unreadNotifs %></span>
+      <% } %>
+    </a>
     <a href="/cliente/treinar" class="nav-item <%= currentPath.startsWith('/treinar') ? 'active' : '' %>">
       <span class="nav-icon"><%- ICONS.activity %></span>Treinar
     </a>
