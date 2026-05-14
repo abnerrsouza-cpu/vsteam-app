@@ -5,69 +5,171 @@
     <div class="topbar">
       <div>
         <h1>Biblioteca de Exercícios</h1>
-        <p class="text-muted mb-0">Catálogo de movimentos com vídeo demonstrativo. Serve de base para montar treinos.</p>
+        <p class="text-muted mb-0">Catálogo de movimentos com link de demonstração. Serve de base pra montar treinos.</p>
       </div>
     </div>
     <%- include('../partials/flash') %>
 
-    <div class="grid grid-2">
-      <div class="card">
-        <h3>+ Novo Exercício</h3>
-        <form action="/admin/exercicios" method="POST">
-          <div class="form-row"><label>Nome *</label><input type="text" name="name" required></div>
-          <div class="form-grid">
-            <div class="form-row">
-              <label>Grupo muscular</label>
-              <select name="muscle_group">
-                <option>Peito</option><option>Costas</option><option>Ombros</option>
-                <option>Bíceps</option><option>Tríceps</option><option>Pernas</option>
-                <option>Quadríceps</option><option>Posterior de coxa</option>
-                <option>Glúteos</option><option>Panturrilha</option><option>Core</option>
-                <option>Posterior + Lombar</option><option>Cardio</option>
-              </select>
-            </div>
-            <div class="form-row">
-              <label>Equipamento</label>
-              <input type="text" name="equipment" placeholder="Barra, halter, polia...">
-            </div>
-          </div>
-          <div class="form-row">
-            <label>Vídeo (URL embed YouTube)</label>
-            <input type="url" name="video_url" placeholder="https://www.youtube.com/embed/...">
-          </div>
-          <div class="form-row">
-            <label>Descrição / execução</label>
-            <textarea name="description" rows="3"></textarea>
-          </div>
-          <button class="btn" type="submit">Adicionar</button>
-        </form>
+    <%
+      // Lista de grupos musculares (ordem padrão)
+      var GRUPOS = ['Peito','Costas','Ombros','Bíceps','Tríceps','Quadríceps','Posterior de Coxa','Glúteos','Panturrilhas','Abdômen / Core','Antebraço','Trapézio','Adutores','Lombar','Cardio / Condicionamento','Funcionais / Explosivos','Mobilidade / Estabilidade'];
+      // Conta por grupo
+      var contagem = {};
+      items.forEach(function(e){
+        var g = e.muscle_group || 'Outros';
+        contagem[g] = (contagem[g]||0) + 1;
+      });
+      var totalExercicios = items.length;
+    %>
+
+    <div class="card mb-3">
+      <div class="flex-between" style="flex-wrap:wrap;gap:12px">
+        <div>
+          <h3 style="margin:0">Catálogo (<%= totalExercicios %>)</h3>
+          <p class="fs-sm text-muted mb-0">Use a busca e os filtros pra encontrar rápido.</p>
+        </div>
+        <div class="flex-gap gap-2" style="flex-wrap:wrap">
+          <input type="search" id="bibliotecaSearch" placeholder="Buscar por nome..." style="min-width:240px;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg-soft);color:var(--text)">
+          <button class="btn btn-sm btn-outline" type="button" onclick="document.getElementById('formNovoExercicio').scrollIntoView({behavior:'smooth'})">+ Novo Exercício</button>
+        </div>
       </div>
 
-      <div class="card">
-        <h3>Catálogo (<%= items.length %>)</h3>
-        <% if (items.length === 0) { %>
-          <p class="text-muted">Biblioteca vazia.</p>
-        <% } else { %>
-          <% items.forEach(function(e){ %>
-            <div style="padding:10px;background:var(--bg-soft);border-radius:8px;margin-bottom:8px">
-              <div class="flex-between">
-                <div>
-                  <strong><%= e.name %></strong>
-                  <div class="fs-sm text-muted"><%= e.muscle_group %> · <%= e.equipment || '—' %></div>
-                </div>
-                <div class="flex-gap gap-1">
-                  <% if (e.video_url) { %><a href="<%= e.video_url %>" target="_blank" class="btn btn-sm btn-outline">▶ Ver</a><% } %>
-                  <form action="/admin/exercicios/<%= e.id %>/delete" method="POST" data-confirm="Remover?" style="margin:0">
-                    <button class="btn btn-sm btn-ghost" type="submit">×</button>
-                  </form>
-                </div>
-              </div>
-              <% if (e.description) { %><p class="fs-sm text-muted mt-1"><%= e.description %></p><% } %>
-            </div>
-          <% }); %>
-        <% } %>
+      <!-- Filtros de grupo muscular -->
+      <div class="flex-gap gap-1" style="flex-wrap:wrap;margin-top:14px" id="bibliotecaFilters">
+        <button type="button" class="btn btn-sm btn-outline filter-grupo active" data-grupo="todos">Todos · <%= totalExercicios %></button>
+        <% GRUPOS.forEach(function(g){
+             var c = contagem[g] || 0;
+             if (c === 0) return;
+        %>
+          <button type="button" class="btn btn-sm btn-ghost filter-grupo" data-grupo="<%= g %>"><%= g %> · <%= c %></button>
+        <% }); %>
+        <% // Grupos extras (legados) que não estão no GRUPOS padrão
+           Object.keys(contagem).forEach(function(g){
+             if (GRUPOS.indexOf(g) === -1) { %>
+          <button type="button" class="btn btn-sm btn-ghost filter-grupo" data-grupo="<%= g %>"><%= g %> · <%= contagem[g] %></button>
+        <% }
+           });
+        %>
       </div>
+    </div>
+
+    <!-- Catálogo agrupado -->
+    <div class="card">
+      <% if (totalExercicios === 0) { %>
+        <p class="text-muted">Biblioteca vazia.</p>
+      <% } else { %>
+        <%
+          // Agrupa por muscle_group
+          var byGroup = {};
+          items.forEach(function(e){
+            var g = e.muscle_group || 'Outros';
+            (byGroup[g] = byGroup[g] || []).push(e);
+          });
+          // Ordem: GRUPOS primeiro, depois extras
+          var groupOrder = GRUPOS.filter(function(g){ return byGroup[g]; });
+          Object.keys(byGroup).forEach(function(g){ if (groupOrder.indexOf(g) === -1) groupOrder.push(g); });
+        %>
+        <% groupOrder.forEach(function(grupo){ %>
+          <div class="grupo-block" data-grupo="<%= grupo %>">
+            <h4 style="margin-top:18px;color:var(--brand);border-bottom:1px solid var(--border);padding-bottom:6px"><%= grupo %> <span class="text-muted fs-sm">(<%= byGroup[grupo].length %>)</span></h4>
+            <div class="grid grid-3 gap-2" style="margin-top:10px">
+              <% byGroup[grupo].forEach(function(e){ %>
+                <div class="exercicio-item" data-name="<%= (e.name || '').toLowerCase() %>" data-grupo="<%= grupo %>" style="padding:12px;background:var(--bg-soft);border-radius:8px;border:1px solid var(--border)">
+                  <div class="flex-between" style="align-items:flex-start;gap:8px">
+                    <div style="flex:1;min-width:0">
+                      <strong style="display:block;line-height:1.3"><%= e.name %></strong>
+                      <div class="fs-sm text-muted" style="margin-top:4px"><%= e.equipment || '—' %></div>
+                    </div>
+                    <form action="/admin/exercicios/<%= e.id %>/delete" method="POST" data-confirm="Remover este exercício?" style="margin:0">
+                      <button class="btn btn-sm btn-ghost" type="submit" title="Remover">×</button>
+                    </form>
+                  </div>
+                  <% if (e.video_url) { %>
+                    <a href="<%= e.video_url %>" target="_blank" rel="noopener" class="btn btn-sm btn-outline" style="margin-top:8px;width:100%;text-align:center">▶ Ver vídeo</a>
+                  <% } %>
+                  <% if (e.description) { %><p class="fs-sm text-muted mt-1" style="margin-top:6px"><%= e.description %></p><% } %>
+                </div>
+              <% }); %>
+            </div>
+          </div>
+        <% }); %>
+      <% } %>
+    </div>
+
+    <!-- Form de novo exercício -->
+    <div class="card mt-3" id="formNovoExercicio">
+      <h3>+ Adicionar exercício à biblioteca</h3>
+      <form action="/admin/exercicios" method="POST">
+        <div class="form-row"><label>Nome *</label><input type="text" name="name" required></div>
+        <div class="form-grid">
+          <div class="form-row">
+            <label>Grupo muscular</label>
+            <select name="muscle_group">
+              <% GRUPOS.forEach(function(g){ %><option><%= g %></option><% }); %>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>Equipamento</label>
+            <input type="text" name="equipment" placeholder="Barra, halter, polia, máquina...">
+          </div>
+        </div>
+        <div class="form-row">
+          <label>Vídeo (URL — embed do YouTube ou link de busca)</label>
+          <input type="url" name="video_url" placeholder="https://www.youtube.com/embed/... ou https://www.youtube.com/results?search_query=...">
+        </div>
+        <div class="form-row">
+          <label>Descrição / execução</label>
+          <textarea name="description" rows="3"></textarea>
+        </div>
+        <button class="btn" type="submit">Adicionar</button>
+      </form>
     </div>
   </main>
 </div>
+
+<script>
+(function(){
+  var search = document.getElementById('bibliotecaSearch');
+  var filterBtns = document.querySelectorAll('.filter-grupo');
+  var grupoAtivo = 'todos';
+
+  function applyFilter() {
+    var termo = (search.value || '').toLowerCase().trim();
+    var items = document.querySelectorAll('.exercicio-item');
+    var visiveisPorGrupo = {};
+
+    items.forEach(function(el){
+      var nome = el.getAttribute('data-name') || '';
+      var grupo = el.getAttribute('data-grupo') || '';
+      var matchTermo = !termo || nome.indexOf(termo) !== -1;
+      var matchGrupo = (grupoAtivo === 'todos') || (grupoAtivo === grupo);
+      var visivel = matchTermo && matchGrupo;
+      el.style.display = visivel ? '' : 'none';
+      if (visivel) visiveisPorGrupo[grupo] = (visiveisPorGrupo[grupo]||0) + 1;
+    });
+
+    // Esconde blocos de grupo sem itens visíveis
+    document.querySelectorAll('.grupo-block').forEach(function(block){
+      var g = block.getAttribute('data-grupo');
+      block.style.display = visiveisPorGrupo[g] ? '' : 'none';
+    });
+  }
+
+  if (search) search.addEventListener('input', applyFilter);
+
+  filterBtns.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      grupoAtivo = btn.getAttribute('data-grupo');
+      filterBtns.forEach(function(b){
+        b.classList.remove('active','btn-outline');
+        b.classList.add('btn-ghost');
+      });
+      btn.classList.remove('btn-ghost');
+      btn.classList.add('btn-outline','active');
+      applyFilter();
+    });
+  });
+})();
+</script>
+
 <%- include('../partials/foot') %>
