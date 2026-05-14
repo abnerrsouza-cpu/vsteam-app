@@ -1,4 +1,8 @@
 // VS TEAM APP — Express Server
+// Fuso horário do servidor: força BRT/BRST pra alinhar com hora local dos alunos.
+// Tem que vir ANTES de qualquer require que use Date.
+process.env.TZ = process.env.TZ || 'America/Sao_Paulo';
+
 const express = require('express');
 const session = require('express-session');
 const flash = require('connect-flash');

@@ -4,7 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const db = require('../database');
-const { DESTINOS, VARIAVEIS_DOC, DIAS_SEMANA, processPendingCampaigns, computeNextRun, describeSchedule } = require('../helpers/notifications');
+const { DESTINOS, VARIAVEIS_DOC, DIAS_SEMANA, processPendingCampaigns, computeNextRun, describeSchedule, nowLocalString } = require('../helpers/notifications');
 
 const router = express.Router();
 
@@ -1371,6 +1371,72 @@ router.get('/disparos', (req, res) => {
   });
 });
 
+// Diagnóstico — ajuda a entender por que um disparo não saiu
+router.get('/disparos/debug', (req, res) => {
+  const now = nowLocalString();
+  const tz = process.env.TZ || '(não definido)';
+  const campaigns = db.prepare(`
+    SELECT c.id, c.name, c.status, c.scheduled_for, c.recurrence_type, c.recurrence_day, c.recurrence_time,
+           c.total_recipients, c.created_at, c.sent_at,
+           (SELECT COUNT(*) FROM notification_campaign_recipients WHERE campaign_id = c.id) as recipients_count,
+           (SELECT COUNT(*) FROM notifications WHERE campaign_id = c.id) as notifications_count
+    FROM notification_campaigns c
+    ORDER BY c.id DESC LIMIT 30
+  `).all();
+
+  // Marca quais estão "atrasadas" (deviam ter disparado)
+  campaigns.forEach(c => {
+    c.deveria_ter_disparado = (c.status === 'pending' && c.scheduled_for <= now);
+  });
+
+  res.set('Content-Type', 'text/html; charset=utf-8');
+  res.send(`<!DOCTYPE html><html><head><title>Debug Disparos</title>
+    <style>
+      body{font-family:system-ui,sans-serif;padding:24px;background:#111;color:#eee;line-height:1.5}
+      h1{color:#e10600}
+      table{width:100%;border-collapse:collapse;margin:16px 0}
+      th,td{border:1px solid #444;padding:8px;text-align:left;font-size:13px;vertical-align:top}
+      th{background:#222}
+      .ok{color:#10b981} .bad{color:#f59e0b;font-weight:600} .gray{color:#888}
+      pre{background:#000;padding:12px;border-radius:6px;overflow:auto;font-size:12px}
+      a{color:#e10600}
+    </style></head><body>
+    <h1>🔧 Diagnóstico de Disparos</h1>
+    <p><a href="/admin/disparos">← Voltar</a></p>
+
+    <h2>Ambiente do servidor</h2>
+    <pre>process.env.TZ      = ${tz}
+nowLocalString()    = ${now}
+new Date().toString = ${new Date().toString()}
+SQLite datetime('now')          = ${db.prepare("SELECT datetime('now') as v").get().v}
+SQLite datetime('now','localtime') = ${db.prepare("SELECT datetime('now','localtime') as v").get().v}</pre>
+
+    <h2>Últimas 30 campanhas</h2>
+    <table>
+      <tr><th>ID</th><th>Nome</th><th>Status</th><th>Agendado pra</th><th>Recorrência</th><th>Recip.</th><th>Notif. criadas</th><th>Atrasado?</th></tr>
+      ${campaigns.map(c => `
+        <tr>
+          <td>${c.id}</td>
+          <td><strong>${c.name}</strong></td>
+          <td class="${c.status === 'sent' ? 'ok' : (c.status === 'pending' ? 'bad' : 'gray')}">${c.status}</td>
+          <td>${c.scheduled_for}</td>
+          <td>${c.recurrence_type || 'once'}${c.recurrence_day !== null ? ' · dia ' + c.recurrence_day : ''}${c.recurrence_time ? ' · ' + c.recurrence_time : ''}</td>
+          <td>${c.recipients_count} / ${c.total_recipients}</td>
+          <td>${c.notifications_count}</td>
+          <td>${c.deveria_ter_disparado ? '<span class="bad">⚠️ SIM</span>' : '<span class="ok">não</span>'}</td>
+        </tr>`).join('')}
+    </table>
+
+    <h2>Como ler isso</h2>
+    <ul>
+      <li><strong>Atrasado = SIM:</strong> a campanha já deveria ter disparado mas continua 'pending'. Volte pra /admin/disparos e clique em "🚀 Disparar agora".</li>
+      <li><strong>Recipients 0/0:</strong> ninguém foi vinculado — provavelmente o form não enviou os checkboxes.</li>
+      <li><strong>Notificações criadas = 0 e status = sent:</strong> deu erro no envio (veja os logs do Railway).</li>
+      <li><strong>TZ != America/Sao_Paulo:</strong> o redeploy ainda não pegou a variável nova.</li>
+    </ul>
+  </body></html>`);
+});
+
 router.post('/disparos/templates', (req, res) => {
   const { name, title, body, redirect_to } = req.body;
   if (!name || !title || !body) {
@@ -1507,8 +1573,8 @@ router.post('/disparos/campanhas/:id/cancelar', (req, res) => {
 router.post('/disparos/campanhas/:id/disparar-agora', (req, res) => {
   const c = db.prepare(`SELECT * FROM notification_campaigns WHERE id = ?`).get(req.params.id);
   if (c && c.status === 'pending') {
-    // Antecipa o horário pra agora e processa
-    db.prepare(`UPDATE notification_campaigns SET scheduled_for=datetime('now','localtime') WHERE id=?`).run(req.params.id);
+    // Antecipa o horário pra agora (em hora local do servidor) e processa
+    db.prepare(`UPDATE notification_campaigns SET scheduled_for=? WHERE id=?`).run(nowLocalString(), req.params.id);
     processPendingCampaigns();
     req.flash('success', '🚀 Disparo enviado agora.');
   } else {

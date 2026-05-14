@@ -113,14 +113,25 @@ function describeSchedule(camp) {
   return `📅 ${camp.scheduled_for}`;
 }
 
+// "Agora" como string YYYY-MM-DD HH:MM:SS no fuso do servidor (que setamos pra America/Sao_Paulo).
+// Importante: SQLite datetime('now','localtime') depende do TZ da libc, e em alguns ambientes
+// (Railway/Nixpacks) isso pode quebrar. Aqui geramos via Node, que respeita process.env.TZ.
+function nowLocalString() {
+  const d = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '
+       + pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
+}
+
 // Processa todas as campanhas pendentes cujo scheduled_for já passou.
 // Para campanhas 'once' → marca como sent. Para recorrentes → recalcula próxima data.
 function processPendingCampaigns() {
   try {
+    const agora = nowLocalString();
     const pendentes = db.prepare(`
       SELECT * FROM notification_campaigns
-      WHERE status = 'pending' AND scheduled_for <= datetime('now', 'localtime')
-    `).all();
+      WHERE status = 'pending' AND scheduled_for <= ?
+    `).all(agora);
 
     if (pendentes.length === 0) return 0;
 
@@ -190,4 +201,5 @@ module.exports = {
   computeNextRun,
   describeSchedule,
   unreadCount,
+  nowLocalString,
 };

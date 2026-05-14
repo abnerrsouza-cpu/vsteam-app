@@ -1,8 +1,11 @@
 [phases.setup]
-nixPkgs = ["nodejs_20", "python3", "gcc", "gnumake"]
+nixPkgs = ["nodejs_20", "python3", "gcc", "gnumake", "tzdata"]
 
 [phases.install]
 cmds = ["npm ci --omit=dev || npm install --omit=dev"]
 
 [start]
 cmd = "node server.js"
+
+[variables]
+TZ = "America/Sao_Paulo"
