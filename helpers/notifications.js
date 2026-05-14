@@ -58,9 +58,10 @@ function processPendingCampaigns() {
     if (pendentes.length === 0) return 0;
 
     const getRecipients = db.prepare(`
-      SELECT c.id as client_id, c.name
+      SELECT c.id as client_id, u.name
       FROM notification_campaign_recipients r
       JOIN clients c ON c.id = r.client_id
+      JOIN users u ON u.id = c.user_id
       WHERE r.campaign_id = ?
     `);
     const insertNotif = db.prepare(`

@@ -1260,7 +1260,12 @@ router.get('/disparos', (req, res) => {
       CASE c.status WHEN 'pending' THEN 0 WHEN 'sent' THEN 1 ELSE 2 END,
       c.scheduled_for DESC
   `).all();
-  const clientes = db.prepare(`SELECT id, name, status FROM clients ORDER BY status, name`).all();
+  const clientes = db.prepare(`
+    SELECT c.id, u.name, c.status
+    FROM clients c
+    JOIN users u ON u.id = c.user_id
+    ORDER BY c.status, u.name
+  `).all();
 
   // Status de leitura por campanha (para mostrar "12/15 lidas")
   const leituras = {};
