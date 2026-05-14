@@ -1,0 +1,140 @@
+<%- include('../partials/head') %>
+<div class="app">
+  <%- include('../partials/sidebar-admin') %>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1>Planos</h1>
+        <p class="text-muted mb-0">Catálogo dos seus produtos. Mude nome, valor e o que vai incluído — alunos e leads que usam o nome antigo são atualizados automaticamente.</p>
+      </div>
+    </div>
+    <%- include('../partials/flash') %>
+
+    <!-- Card: criar novo plano -->
+    <div class="card mb-3">
+      <details>
+        <summary style="cursor:pointer;font-weight:600;font-size:15px">+ Adicionar novo plano</summary>
+        <form action="/admin/planos" method="POST" style="margin-top:14px">
+          <div class="form-grid">
+            <div class="form-row">
+              <label>Nome *</label>
+              <input type="text" name="name" placeholder="Ex: Consultoria VS TEAM+" required>
+            </div>
+            <div class="form-row">
+              <label>Valor (R$)</label>
+              <input type="number" name="value" step="0.01" min="0" placeholder="897.00">
+            </div>
+          </div>
+          <div class="form-row">
+            <label>Duração</label>
+            <input type="text" name="duration" placeholder="1 mês, 3 meses, 6 meses, Mensal recorrente...">
+          </div>
+          <div class="form-row">
+            <label>O que vai incluído</label>
+            <textarea name="description" rows="5" placeholder="Liste o que está incluído, um item por linha:&#10;- Acompanhamento 1-on-1&#10;- Treino atualizado semanalmente&#10;- Avaliação semanal&#10;- Suporte ilimitado"></textarea>
+            <small class="text-muted">Cada linha vira um item da lista visível pros leads.</small>
+          </div>
+          <button class="btn" type="submit">Criar plano</button>
+        </form>
+      </details>
+    </div>
+
+    <% if (planos.length === 0) { %>
+      <div class="card text-center text-muted">Nenhum plano cadastrado.</div>
+    <% } else { %>
+      <% planos.forEach(function(p, idx){
+           var uso = usoPorPlano[p.id] || { ativos: 0, todos: 0, leads: 0 };
+           var totalUso = uso.todos + uso.leads;
+      %>
+        <div class="card mb-2" style="<%= !p.active ? 'opacity:0.6;' : '' %>">
+          <div class="flex-between" style="align-items:flex-start;flex-wrap:wrap;gap:14px">
+            <!-- Coluna esquerda: info -->
+            <div style="flex:1;min-width:280px">
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <strong style="font-size:18px"><%= p.name %></strong>
+                <% if (!p.active) { %><span class="chip" style="background:#888;color:#fff;font-size:11px;padding:2px 8px;border-radius:6px">Inativo</span><% } %>
+                <% if (p.value > 0) { %>
+                  <span class="chip" style="background:var(--primary,#e10600);color:#fff;font-size:13px;padding:3px 10px;border-radius:6px;font-weight:600">
+                    R$ <%= p.value.toFixed(2).replace('.', ',') %>
+                  </span>
+                <% } %>
+                <% if (p.duration) { %><span class="text-muted fs-sm">· <%= p.duration %></span><% } %>
+              </div>
+              <% if (p.description) { %>
+                <div style="margin-top:10px;padding:10px;background:var(--bg-soft);border-radius:6px;white-space:pre-wrap;font-size:14px;line-height:1.55"><%= p.description %></div>
+              <% } %>
+              <div class="fs-sm text-muted" style="margin-top:8px">
+                👥 <strong><%= uso.ativos %></strong> aluno(s) ativos
+                <% if (uso.todos > uso.ativos) { %> · <%= uso.todos - uso.ativos %> encerrados <% } %>
+                <% if (uso.leads > 0) { %> · 📣 <%= uso.leads %> lead(s) no pipeline <% } %>
+              </div>
+            </div>
+
+            <!-- Coluna direita: ações -->
+            <div class="flex-gap gap-1" style="flex-direction:column;min-width:140px;align-items:stretch">
+              <button class="btn btn-sm btn-outline" type="button" onclick="document.getElementById('editForm-<%= p.id %>').classList.toggle('hidden')">✏️ Editar</button>
+              <form action="/admin/planos/<%= p.id %>/toggle" method="POST" style="margin:0">
+                <button class="btn btn-sm btn-ghost" type="submit" style="width:100%">
+                  <%= p.active ? '👁️ Desativar' : '✅ Reativar' %>
+                </button>
+              </form>
+              <% if (idx > 0) { %>
+                <form action="/admin/planos/<%= p.id %>/move" method="POST" style="margin:0">
+                  <input type="hidden" name="direction" value="up">
+                  <button class="btn btn-sm btn-ghost" type="submit" style="width:100%" title="Subir">↑</button>
+                </form>
+              <% } %>
+              <% if (idx < planos.length - 1) { %>
+                <form action="/admin/planos/<%= p.id %>/move" method="POST" style="margin:0">
+                  <input type="hidden" name="direction" value="down">
+                  <button class="btn btn-sm btn-ghost" type="submit" style="width:100%" title="Descer">↓</button>
+                </form>
+              <% } %>
+              <% if (totalUso === 0) { %>
+                <form action="/admin/planos/<%= p.id %>/delete" method="POST" data-confirm="Excluir o plano '<%= p.name %>' definitivamente?" style="margin:0">
+                  <button class="btn btn-sm btn-ghost" type="submit" style="width:100%;color:#e10600">🗑️ Excluir</button>
+                </form>
+              <% } %>
+            </div>
+          </div>
+
+          <!-- Form de edição (escondido por padrão) -->
+          <div id="editForm-<%= p.id %>" class="hidden" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+            <form action="/admin/planos/<%= p.id %>/update" method="POST">
+              <div class="form-grid">
+                <div class="form-row">
+                  <label>Nome *</label>
+                  <input type="text" name="name" value="<%= p.name %>" required>
+                </div>
+                <div class="form-row">
+                  <label>Valor (R$)</label>
+                  <input type="number" name="value" step="0.01" min="0" value="<%= p.value || '' %>">
+                </div>
+              </div>
+              <div class="form-row">
+                <label>Duração</label>
+                <input type="text" name="duration" value="<%= p.duration || '' %>">
+              </div>
+              <div class="form-row">
+                <label>O que vai incluído</label>
+                <textarea name="description" rows="5"><%= p.description || '' %></textarea>
+              </div>
+              <% if (totalUso > 0) { %>
+                <div class="alert" style="background:rgba(245,158,11,0.1);border-left:3px solid #f59e0b;padding:10px;border-radius:6px;margin-bottom:10px;font-size:13px">
+                  ⚠️ Renomear esse plano vai atualizar automaticamente os
+                  <strong><%= uso.todos %></strong> aluno(s) e <strong><%= uso.leads %></strong> lead(s) que usam o nome atual.
+                </div>
+              <% } %>
+              <div class="flex-gap gap-1">
+                <button class="btn btn-sm" type="submit">💾 Salvar</button>
+                <button class="btn btn-sm btn-ghost" type="button" onclick="document.getElementById('editForm-<%= p.id %>').classList.add('hidden')">Cancelar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      <% }); %>
+    <% } %>
+  </main>
+</div>
+<style>.hidden{display:none}</style>
+<%- include('../partials/foot') %>

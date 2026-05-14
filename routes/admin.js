@@ -1436,4 +1436,119 @@ router.post('/disparos/campanhas/:id/delete', (req, res) => {
   res.redirect('/admin/disparos');
 });
 
+// ===========================
+//  PLANOS (catálogo)
+// ===========================
+
+router.get('/planos', (req, res) => {
+  const planos = db.prepare(`SELECT * FROM plans ORDER BY active DESC, order_idx, name`).all();
+  // Quantos alunos / leads usam cada plano
+  const usoPorPlano = {};
+  planos.forEach(p => {
+    const ativos    = db.prepare(`SELECT COUNT(*) as c FROM clients WHERE plan = ? AND status IN ('ativo','implementacao')`).get(p.name).c;
+    const todos     = db.prepare(`SELECT COUNT(*) as c FROM clients WHERE plan = ?`).get(p.name).c;
+    const leads     = db.prepare(`SELECT COUNT(*) as c FROM leads   WHERE plan = ?`).get(p.name).c;
+    usoPorPlano[p.id] = { ativos, todos, leads };
+  });
+  res.render('admin/planos', {
+    title: 'Planos — VS TEAM',
+    planos, usoPorPlano
+  });
+});
+
+router.post('/planos', (req, res) => {
+  const { name, description, value, duration } = req.body;
+  if (!name || !String(name).trim()) {
+    req.flash('error', 'Nome do plano é obrigatório.');
+    return res.redirect('/admin/planos');
+  }
+  try {
+    const maxOrder = db.prepare('SELECT COALESCE(MAX(order_idx), -1) as m FROM plans').get().m;
+    db.prepare(`INSERT INTO plans (name, description, value, duration, order_idx) VALUES (?, ?, ?, ?, ?)`)
+      .run(name.trim(), (description||'').trim(), parseFloat(value)||0, (duration||'').trim(), maxOrder+1);
+    req.flash('success', '✅ Plano criado.');
+  } catch(e) {
+    if (String(e.message).includes('UNIQUE')) {
+      req.flash('error', `Já existe um plano com o nome "${name}".`);
+    } else {
+      req.flash('error', 'Erro ao criar plano: ' + e.message);
+    }
+  }
+  res.redirect('/admin/planos');
+});
+
+router.post('/planos/:id/update', (req, res) => {
+  const { name, description, value, duration } = req.body;
+  if (!name || !String(name).trim()) {
+    req.flash('error', 'Nome do plano é obrigatório.');
+    return res.redirect('/admin/planos');
+  }
+  const atual = db.prepare('SELECT * FROM plans WHERE id = ?').get(req.params.id);
+  if (!atual) return res.redirect('/admin/planos');
+
+  const novoNome = name.trim();
+  try {
+    const tx = db.transaction(() => {
+      db.prepare(`UPDATE plans SET name=?, description=?, value=?, duration=? WHERE id=?`)
+        .run(novoNome, (description||'').trim(), parseFloat(value)||0, (duration||'').trim(), req.params.id);
+      // Cascata: se mudou o nome, atualiza clients.plan e leads.plan que ainda referenciavam o antigo
+      if (atual.name !== novoNome) {
+        db.prepare(`UPDATE clients SET plan = ? WHERE plan = ?`).run(novoNome, atual.name);
+        db.prepare(`UPDATE leads   SET plan = ? WHERE plan = ?`).run(novoNome, atual.name);
+      }
+    });
+    tx();
+    req.flash('success', `✅ Plano atualizado${atual.name !== novoNome ? ` (renomeado de "${atual.name}" para "${novoNome}" — alunos e leads também foram atualizados).` : '.'}`);
+  } catch(e) {
+    if (String(e.message).includes('UNIQUE')) {
+      req.flash('error', `Já existe outro plano com o nome "${novoNome}".`);
+    } else {
+      req.flash('error', 'Erro: ' + e.message);
+    }
+  }
+  res.redirect('/admin/planos');
+});
+
+router.post('/planos/:id/toggle', (req, res) => {
+  const p = db.prepare('SELECT * FROM plans WHERE id = ?').get(req.params.id);
+  if (!p) return res.redirect('/admin/planos');
+  db.prepare('UPDATE plans SET active = ? WHERE id = ?').run(p.active ? 0 : 1, p.id);
+  req.flash('success', p.active ? `Plano "${p.name}" desativado (não some, apenas oculta).` : `Plano "${p.name}" reativado.`);
+  res.redirect('/admin/planos');
+});
+
+router.post('/planos/:id/delete', (req, res) => {
+  const p = db.prepare('SELECT * FROM plans WHERE id = ?').get(req.params.id);
+  if (!p) return res.redirect('/admin/planos');
+  // Só exclui se ninguém estiver usando
+  const usandoClients = db.prepare(`SELECT COUNT(*) as c FROM clients WHERE plan = ?`).get(p.name).c;
+  const usandoLeads   = db.prepare(`SELECT COUNT(*) as c FROM leads   WHERE plan = ?`).get(p.name).c;
+  if (usandoClients + usandoLeads > 0) {
+    req.flash('error', `Não dá pra excluir "${p.name}": ${usandoClients} aluno(s) e ${usandoLeads} lead(s) ainda usam esse nome. Desative em vez de excluir.`);
+    return res.redirect('/admin/planos');
+  }
+  db.prepare('DELETE FROM plans WHERE id = ?').run(p.id);
+  req.flash('success', `Plano "${p.name}" excluído.`);
+  res.redirect('/admin/planos');
+});
+
+router.post('/planos/:id/move', (req, res) => {
+  const dir = req.body.direction === 'up' ? -1 : 1;
+  const p = db.prepare('SELECT * FROM plans WHERE id = ?').get(req.params.id);
+  if (!p) return res.redirect('/admin/planos');
+  const vizinho = db.prepare(`
+    SELECT * FROM plans
+    WHERE order_idx ${dir < 0 ? '<' : '>'} ?
+    ORDER BY order_idx ${dir < 0 ? 'DESC' : 'ASC'} LIMIT 1
+  `).get(p.order_idx);
+  if (vizinho) {
+    const tx = db.transaction(() => {
+      db.prepare('UPDATE plans SET order_idx = ? WHERE id = ?').run(vizinho.order_idx, p.id);
+      db.prepare('UPDATE plans SET order_idx = ? WHERE id = ?').run(p.order_idx, vizinho.id);
+    });
+    tx();
+  }
+  res.redirect('/admin/planos');
+});
+
 module.exports = router;
